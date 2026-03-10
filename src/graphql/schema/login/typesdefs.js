@@ -13,6 +13,5 @@ export const loginTypedefs = gql`
 
   type Login {
     userId: String!
-    token: String!
   }
 `;

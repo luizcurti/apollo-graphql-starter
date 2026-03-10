@@ -1,6 +1,6 @@
 import { ValidationError } from 'apollo-server-errors';
 import { SQLDatasource } from '../../datasources/sql/sql-datasource';
-import { CREATED_COMMENT_TRIGGER, pubSub } from './resolvers';
+import { CREATED_COMMENT_TRIGGER, pubSub } from '../../pubsub';
 
 const commentReducer = (comment) => {
   return {

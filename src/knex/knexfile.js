@@ -7,7 +7,7 @@ dotenv.config({
 
 module.exports = {
   development: {
-    client: process.env.DATABASE_CLIENT,
+    client: process.env.DATABASE_CLIENT || 'mysql2',
     connection: {
       host: process.env.DATABASE_HOST,
       port: process.env.DATABASE_PORT,
@@ -25,7 +25,7 @@ module.exports = {
     },
   },
   production: {
-    client: process.env.DATABASE_CLIENT,
+    client: process.env.DATABASE_CLIENT || 'mysql2',
     connection: {
       host: process.env.DATABASE_HOST,
       port: process.env.DATABASE_PORT,

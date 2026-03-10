@@ -1,20 +1,45 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { RESTDataSource } from 'apollo-datasource-rest';
-import { AuthenticationError } from 'apollo-server-errors';
+import { DataSource } from 'apollo-datasource';
+import { AuthenticationError, UserInputError } from 'apollo-server-errors';
 
-export class LoginApi extends RESTDataSource {
-  constructor() {
-    super();
-    this.baseURL = process.env.API_URL + '/users/';
+// In-memory store for login attempts: key = userName, value = { count, resetAt }
+// In a multi-instance setup, replace with Redis. Sufficient for single-instance prod.
+const loginAttempts = new Map();
+const MAX_ATTEMPTS = 5;
+const WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+
+const checkRateLimit = (userName) => {
+  const now = Date.now();
+  const entry = loginAttempts.get(userName);
+
+  if (entry && now < entry.resetAt) {
+    if (entry.count >= MAX_ATTEMPTS) {
+      throw new UserInputError(
+        `Too many login attempts. Try again in ${Math.ceil((entry.resetAt - now) / 60000)} minute(s).`,
+      );
+    }
+    entry.count += 1;
+  } else {
+    loginAttempts.set(userName, { count: 1, resetAt: now + WINDOW_MS });
+  }
+};
+
+const clearRateLimit = (userName) => loginAttempts.delete(userName);
+
+export class LoginApi extends DataSource {
+  initialize({ context }) {
+    this.context = context;
+  }
+
+  get userDb() {
+    return this.context.dataSources.userDb;
   }
 
   async getUser(userName) {
-    const user = await this.get('', { userName }, { cacheOptions: { ttl: 0 } });
+    const user = await this.userDb.getUserByUserName(userName);
 
-    const found = !!user.length;
-
-    if (!found) {
+    if (!user) {
       throw new AuthenticationError('User does not exist.');
     }
 
@@ -22,20 +47,21 @@ export class LoginApi extends RESTDataSource {
   }
 
   async login(userName, password) {
+    checkRateLimit(userName);
+
     const user = await this.getUser(userName);
 
-    const { passwordHash, id: userId } = user[0];
-    const isPasswordValid = await this.checkUserPassword(
-      password,
-      passwordHash,
-    );
+    const { passwordHash, id: userId } = user;
+    const isPasswordValid = await bcrypt.compare(password, passwordHash);
 
     if (!isPasswordValid) {
       throw new AuthenticationError('Invalid password.');
     }
 
+    clearRateLimit(userName);
+
     const token = this.createJwtToken({ userId });
-    await this.patch(userId, { token }, { cacheOptions: { ttl: 0 } });
+    await this.userDb.setToken(userId, token);
 
     this.context.res.cookie('jwtToken', token, {
       secure: true,
@@ -45,26 +71,25 @@ export class LoginApi extends RESTDataSource {
       sameSite: 'none',
     });
 
-    return {
-      userId,
-      token,
-    };
+    return { userId };
   }
 
   async logout(userName) {
+    const { loggedUserId } = this.context;
+
+    if (!loggedUserId) {
+      throw new AuthenticationError('You have to log in');
+    }
+
     const user = await this.getUser(userName);
 
-    if (user[0].id !== this.context.loggedUserId) {
+    if (String(user.id) !== String(loggedUserId)) {
       throw new AuthenticationError('You are not this user.');
     }
 
-    await this.patch(user[0].id, { token: '' }, { cacheOptions: { ttl: 0 } });
+    await this.userDb.clearToken(user.id);
     this.context.res.clearCookie('jwtToken');
     return true;
-  }
-
-  checkUserPassword(password, passwordHash) {
-    return bcrypt.compare(password, passwordHash);
   }
 
   createJwtToken(payload) {
@@ -73,3 +98,4 @@ export class LoginApi extends RESTDataSource {
     });
   }
 }
+

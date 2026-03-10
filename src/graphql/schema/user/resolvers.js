@@ -2,18 +2,16 @@ import { checkOwner } from '../login/utils/login-functions';
 
 // Query resolvers
 const users = async (_, { input }, { dataSources }) => {
-  const users = await dataSources.userApi.getUsers(input);
-  return users;
+  return dataSources.userDb.getUsers(input);
 };
 
 const user = async (_, { id }, { dataSources }) => {
-  const user = await dataSources.userApi.getUser(id);
-  return user;
+  return dataSources.userDb.getUser(id);
 };
 
 // Mutation Resolvers
 const createUser = async (_, { data }, { dataSources }) => {
-  return dataSources.userApi.createUser(data);
+  return dataSources.userDb.createUser(data);
 };
 
 const updateUser = async (
@@ -22,17 +20,17 @@ const updateUser = async (
   { dataSources, loggedUserId },
 ) => {
   checkOwner(userId, loggedUserId);
-  return dataSources.userApi.updateUser(userId, data);
+  return dataSources.userDb.updateUser(userId, data);
 };
 
 const deleteUser = async (_, { userId }, { dataSources, loggedUserId }) => {
   checkOwner(userId, loggedUserId);
-  return dataSources.userApi.deleteUser(userId);
+  return dataSources.userDb.deleteUser(userId);
 };
 
 // Field Resolvers
 const posts = ({ id }, _, { dataSources }) => {
-  return dataSources.postApi.batchLoadByUserId(id);
+  return dataSources.postDb.batchLoadByUserId(id);
 };
 
 export const userResolvers = {

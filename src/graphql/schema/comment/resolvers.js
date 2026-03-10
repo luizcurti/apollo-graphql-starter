@@ -1,14 +1,12 @@
-import { PubSub, withFilter } from 'apollo-server';
+import { withFilter } from 'apollo-server';
 import { checkIsLoggedIn } from '../login/utils/login-functions';
-
-export const pubSub = new PubSub();
-export const CREATED_COMMENT_TRIGGER = 'CREATED_COMMENT';
+import { pubSub, CREATED_COMMENT_TRIGGER } from '../../pubsub';
 
 const createComment = async (_, { data }, { dataSources, loggedUserId }) => {
   checkIsLoggedIn(loggedUserId);
   const { postId, comment } = data;
 
-  const post = await dataSources.postApi.getPost(postId);
+  const post = await dataSources.postDb.getPost(postId);
 
   return dataSources.commentDb.create({
     postId,
@@ -19,8 +17,7 @@ const createComment = async (_, { data }, { dataSources, loggedUserId }) => {
 };
 
 const user = async ({ user_id }, _, { dataSources }) => {
-  const user = await dataSources.userApi.batchLoadById(user_id);
-  return user;
+  return dataSources.userDb.batchLoadById(user_id);
 };
 
 const createdComment = {

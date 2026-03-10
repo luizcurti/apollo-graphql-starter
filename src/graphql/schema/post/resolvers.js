@@ -1,26 +1,19 @@
-import { AuthenticationError } from 'apollo-server-errors';
 import { checkIsLoggedIn } from '../login/utils/login-functions';
 
 // Query resolvers
 const post = async (_, { id }, { dataSources }) => {
-  const post = dataSources.postApi.getPost(id);
-  return post;
+  return dataSources.postDb.getPost(id);
 };
 
 const posts = async (_, { input }, { dataSources, loggedUserId }) => {
-  if (!loggedUserId) {
-    throw new AuthenticationError('You have to log in');
-  }
-
-  const posts = dataSources.postApi.getPosts(input);
-  return posts;
+  checkIsLoggedIn(loggedUserId);
+  return dataSources.postDb.getPosts(input);
 };
 
 // Mutation resolvers
 const createPost = async (_, { data }, { dataSources, loggedUserId }) => {
   checkIsLoggedIn(loggedUserId);
-  data.userId = loggedUserId;
-  return dataSources.postApi.createPost(data);
+  return dataSources.postDb.createPost({ ...data, userId: loggedUserId });
 };
 
 const updatePost = async (
@@ -29,17 +22,17 @@ const updatePost = async (
   { dataSources, loggedUserId },
 ) => {
   checkIsLoggedIn(loggedUserId);
-  return dataSources.postApi.updatePost(postId, data);
+  return dataSources.postDb.updatePost(postId, data, loggedUserId);
 };
 
 const deletePost = async (_, { postId }, { dataSources, loggedUserId }) => {
   checkIsLoggedIn(loggedUserId);
-  return dataSources.postApi.deletePost(postId);
+  return dataSources.postDb.deletePost(postId, loggedUserId);
 };
 
 // Field resolver
 const user = async ({ userId }, _, { dataSources }) => {
-  return dataSources.userApi.batchLoadById(userId);
+  return dataSources.userDb.batchLoadById(userId);
 };
 
 const comments = async ({ id: post_id }, _, { dataSources }) => {

@@ -6,7 +6,7 @@ export const createPostFn = async (postData, dataSource) => {
   const { title, body, userId } = postInfo;
 
   if (!title || !body || !userId) {
-    throw new ValidationError('You have to send title, body and userId');
+    throw new ValidationError('title and body are required');
   }
 
   return await dataSource.post('', { ...postInfo });
@@ -22,7 +22,7 @@ export const findPostOwner = async (postId, dataSource) => {
   }
 
   if (foundPost.userId !== dataSource.context.loggedUserId) {
-    throw new AuthenticationError('You cannot upate this post 😠!');
+    throw new AuthenticationError('You cannot update this post.');
   }
 
   return foundPost;
@@ -33,7 +33,7 @@ export const updatePostFn = async (postId, postData, dataSource) => {
     throw new ValidationError('Missing postId');
   }
 
-  const { userId } = await findPostOwner(postId, dataSource);
+  await findPostOwner(postId, dataSource);
   const { title, body } = postData;
 
   if (typeof title !== 'undefined') {
@@ -46,13 +46,6 @@ export const updatePostFn = async (postId, postData, dataSource) => {
     if (!body) {
       throw new ValidationError('body missing');
     }
-  }
-
-  if (typeof userId !== 'undefined') {
-    if (!userId) {
-      throw new ValidationError('userId missing');
-    }
-    await userExists(userId, dataSource);
   }
 
   return dataSource.patch(postId, { ...postData });

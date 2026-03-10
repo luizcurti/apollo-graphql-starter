@@ -1,18 +1,25 @@
 import jwt from 'jsonwebtoken';
-import { UsersApi } from '../schema/user/datasources';
+import { knex } from '../../knex/';
+import { UserSQLDataSource } from '../schema/user/sql-datasource';
+import { logger } from '../../utils/logger';
+
+const makeUserDb = () => {
+  const userDb = new UserSQLDataSource(knex);
+  userDb.initialize({ context: {}, cache: undefined });
+  return userDb;
+};
 
 const verifyJwtToken = async (token) => {
   try {
     const { userId } = jwt.verify(token, process.env.JWT_SECRET);
 
-    const userApi = new UsersApi();
-    userApi.initialize({});
-    const foundUser = await userApi.getUser(userId);
+    const userDb = makeUserDb();
+    const foundUser = await userDb.getUser(userId);
 
-    if (foundUser.token !== token) return '';
-    return userId;
+    if (!foundUser || foundUser.token !== token) return '';
+    return String(userId);
   } catch (e) {
-    console.log(e);
+    logger.warn({ err: e.message }, 'JWT verification failed');
     return '';
   }
 };
@@ -42,7 +49,7 @@ const cookieParser = (cookiesHeader) => {
     parsedCookie[key] = value;
   }
 
-  return JSON.parse(JSON.stringify(parsedCookie));
+  return parsedCookie;
 };
 
 export const context = async ({ req, res, connection }) => {
@@ -66,11 +73,9 @@ export const context = async ({ req, res, connection }) => {
   };
 
   if (connection) {
-    const userApi = new UsersApi();
-    userApi.initialize({});
-
+    const userDb = makeUserDb();
     theContext.dataSources = {
-      userApi,
+      userDb,
     };
   }
 
