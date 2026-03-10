@@ -15,7 +15,11 @@ const mockUserDb = {
 
 const makeCtx = (loggedUserId = '') => ({
   loggedUserId,
-  dataSources: { commentDb: mockCommentDb, postDb: mockPostDb, userDb: mockUserDb },
+  dataSources: {
+    commentDb: mockCommentDb,
+    postDb: mockPostDb,
+    userDb: mockUserDb,
+  },
 });
 
 beforeEach(() => jest.clearAllMocks());
@@ -28,8 +32,8 @@ describe('Mutation.createComment', () => {
       commentResolvers.Mutation.createComment(
         null,
         { data: { postId: '1', comment: 'Olá' } },
-        makeCtx('')
-      )
+        makeCtx(''),
+      ),
     ).rejects.toThrow(AuthenticationError);
 
     expect(mockPostDb.getPost).not.toHaveBeenCalled();
@@ -38,14 +42,19 @@ describe('Mutation.createComment', () => {
 
   it('cria comentário e passa postOwner quando post existe', async () => {
     const post = { id: '1', userId: 'owner123' };
-    const created = { id: '10', comment: 'Olá', user_id: 'user1', post_id: '1' };
+    const created = {
+      id: '10',
+      comment: 'Olá',
+      user_id: 'user1',
+      post_id: '1',
+    };
     mockPostDb.getPost.mockResolvedValue(post);
     mockCommentDb.create.mockResolvedValue(created);
 
     const result = await commentResolvers.Mutation.createComment(
       null,
       { data: { postId: '1', comment: 'Olá' } },
-      makeCtx('user1')
+      makeCtx('user1'),
     );
 
     expect(mockPostDb.getPost).toHaveBeenCalledWith('1');
@@ -65,7 +74,7 @@ describe('Mutation.createComment', () => {
     await commentResolvers.Mutation.createComment(
       null,
       { data: { postId: '999', comment: 'Olá' } },
-      makeCtx('user1')
+      makeCtx('user1'),
     );
 
     const callArg = mockCommentDb.create.mock.calls[0][0];
@@ -79,7 +88,7 @@ describe('Mutation.createComment', () => {
     await commentResolvers.Mutation.createComment(
       null,
       { data: { postId: '1', comment: 'Olá' } },
-      makeCtx('user-logado')
+      makeCtx('user-logado'),
     );
 
     const callArg = mockCommentDb.create.mock.calls[0][0];
@@ -94,7 +103,11 @@ describe('Comment.user (field resolver)', () => {
     const user = { id: 'user1', userName: 'alice' };
     mockUserDb.batchLoadById.mockResolvedValue(user);
 
-    const result = await commentResolvers.Comment.user({ user_id: 'user1' }, null, makeCtx());
+    const result = await commentResolvers.Comment.user(
+      { user_id: 'user1' },
+      null,
+      makeCtx(),
+    );
 
     expect(mockUserDb.batchLoadById).toHaveBeenCalledWith('user1');
     expect(result).toEqual(user);

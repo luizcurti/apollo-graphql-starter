@@ -36,7 +36,11 @@ describe('Query.user', () => {
   it('retorna null quando usuário não existe', async () => {
     mockUserDb.getUser.mockResolvedValue(null);
 
-    const result = await userResolvers.Query.user(null, { id: '999' }, makeCtx());
+    const result = await userResolvers.Query.user(
+      null,
+      { id: '999' },
+      makeCtx(),
+    );
 
     expect(result).toBeNull();
   });
@@ -47,7 +51,11 @@ describe('Query.users', () => {
     const users = [{ id: '1' }, { id: '2' }];
     mockUserDb.getUsers.mockResolvedValue(users);
 
-    const result = await userResolvers.Query.users(null, { input: {} }, makeCtx());
+    const result = await userResolvers.Query.users(
+      null,
+      { input: {} },
+      makeCtx(),
+    );
 
     expect(mockUserDb.getUsers).toHaveBeenCalledWith({});
     expect(result).toHaveLength(2);
@@ -75,11 +83,20 @@ describe('Query.users', () => {
 
 describe('Mutation.createUser', () => {
   it('cria e retorna o novo usuário', async () => {
-    const data = { firstName: 'Alice', lastName: 'Silva', userName: 'alice', password: 'Pass1!' };
+    const data = {
+      firstName: 'Alice',
+      lastName: 'Silva',
+      userName: 'alice',
+      password: 'Pass1!',
+    };
     const created = { id: '1', ...data };
     mockUserDb.createUser.mockResolvedValue(created);
 
-    const result = await userResolvers.Mutation.createUser(null, { data }, makeCtx());
+    const result = await userResolvers.Mutation.createUser(
+      null,
+      { data },
+      makeCtx(),
+    );
 
     expect(mockUserDb.createUser).toHaveBeenCalledWith(data);
     expect(result).toEqual(created);
@@ -89,7 +106,11 @@ describe('Mutation.createUser', () => {
 describe('Mutation.updateUser', () => {
   it('lança AuthenticationError quando não está autenticado', async () => {
     await expect(
-      userResolvers.Mutation.updateUser(null, { userId: '1', data: {} }, makeCtx(''))
+      userResolvers.Mutation.updateUser(
+        null,
+        { userId: '1', data: {} },
+        makeCtx(''),
+      ),
     ).rejects.toThrow(AuthenticationError);
 
     expect(mockUserDb.updateUser).not.toHaveBeenCalled();
@@ -97,7 +118,11 @@ describe('Mutation.updateUser', () => {
 
   it('lança AuthenticationError quando o usuário logado não é o dono', async () => {
     await expect(
-      userResolvers.Mutation.updateUser(null, { userId: '1', data: {} }, makeCtx('2'))
+      userResolvers.Mutation.updateUser(
+        null,
+        { userId: '1', data: {} },
+        makeCtx('2'),
+      ),
     ).rejects.toThrow(AuthenticationError);
 
     expect(mockUserDb.updateUser).not.toHaveBeenCalled();
@@ -110,10 +135,12 @@ describe('Mutation.updateUser', () => {
     const result = await userResolvers.Mutation.updateUser(
       null,
       { userId: '1', data: { firstName: 'Nova' } },
-      makeCtx('1')
+      makeCtx('1'),
     );
 
-    expect(mockUserDb.updateUser).toHaveBeenCalledWith('1', { firstName: 'Nova' });
+    expect(mockUserDb.updateUser).toHaveBeenCalledWith('1', {
+      firstName: 'Nova',
+    });
     expect(result).toEqual(updated);
   });
 });
@@ -121,7 +148,7 @@ describe('Mutation.updateUser', () => {
 describe('Mutation.deleteUser', () => {
   it('lança AuthenticationError quando não está autenticado', async () => {
     await expect(
-      userResolvers.Mutation.deleteUser(null, { userId: '1' }, makeCtx(''))
+      userResolvers.Mutation.deleteUser(null, { userId: '1' }, makeCtx('')),
     ).rejects.toThrow(AuthenticationError);
 
     expect(mockUserDb.deleteUser).not.toHaveBeenCalled();
@@ -129,7 +156,7 @@ describe('Mutation.deleteUser', () => {
 
   it('lança AuthenticationError quando o usuário logado não é o dono', async () => {
     await expect(
-      userResolvers.Mutation.deleteUser(null, { userId: '1' }, makeCtx('2'))
+      userResolvers.Mutation.deleteUser(null, { userId: '1' }, makeCtx('2')),
     ).rejects.toThrow(AuthenticationError);
 
     expect(mockUserDb.deleteUser).not.toHaveBeenCalled();
@@ -141,7 +168,7 @@ describe('Mutation.deleteUser', () => {
     const result = await userResolvers.Mutation.deleteUser(
       null,
       { userId: '1' },
-      makeCtx('1')
+      makeCtx('1'),
     );
 
     expect(mockUserDb.deleteUser).toHaveBeenCalledWith('1');

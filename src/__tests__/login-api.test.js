@@ -39,25 +39,33 @@ describe('LoginApi.login — usuário não existe', () => {
   it('lança AuthenticationError', async () => {
     mockUserDb.getUserByUserName.mockResolvedValue(null);
 
-    await expect(makeApi().login('fantasma', 'Pass1!')).rejects.toThrow(AuthenticationError);
+    await expect(makeApi().login('fantasma', 'Pass1!')).rejects.toThrow(
+      AuthenticationError,
+    );
   });
 });
 
 describe('LoginApi.login — senha incorreta', () => {
   it('lança AuthenticationError', async () => {
     const hash = await bcrypt.hash('SenhaCorreta1', 1);
-    mockUserDb.getUserByUserName.mockResolvedValue({ id: '1', passwordHash: hash });
+    mockUserDb.getUserByUserName.mockResolvedValue({
+      id: '1',
+      passwordHash: hash,
+    });
 
-    await expect(makeApi().login('alice_login', 'SenhaErrada1')).rejects.toThrow(
-      AuthenticationError
-    );
+    await expect(
+      makeApi().login('alice_login', 'SenhaErrada1'),
+    ).rejects.toThrow(AuthenticationError);
   });
 });
 
 describe('LoginApi.login — credenciais válidas', () => {
   it('retorna userId e define cookie httpOnly', async () => {
     const hash = await bcrypt.hash('SenhaValida1', 1);
-    mockUserDb.getUserByUserName.mockResolvedValue({ id: '42', passwordHash: hash });
+    mockUserDb.getUserByUserName.mockResolvedValue({
+      id: '42',
+      passwordHash: hash,
+    });
     mockUserDb.setToken.mockResolvedValue();
 
     const result = await makeApi().login('alice_ok', 'SenhaValida1');
@@ -67,13 +75,16 @@ describe('LoginApi.login — credenciais válidas', () => {
     expect(mockRes.cookie).toHaveBeenCalledWith(
       'jwtToken',
       'mock-jwt-token',
-      expect.objectContaining({ httpOnly: true, secure: true })
+      expect.objectContaining({ httpOnly: true, secure: true }),
     );
   });
 
   it('não retorna o token no corpo da resposta', async () => {
     const hash = await bcrypt.hash('SenhaValida1', 1);
-    mockUserDb.getUserByUserName.mockResolvedValue({ id: '42', passwordHash: hash });
+    mockUserDb.getUserByUserName.mockResolvedValue({
+      id: '42',
+      passwordHash: hash,
+    });
     mockUserDb.setToken.mockResolvedValue();
 
     const result = await makeApi().login('alice_no_token', 'SenhaValida1');
@@ -90,11 +101,15 @@ describe('LoginApi.login — rate limiting', () => {
 
     // 5 tentativas permitidas (falham com AuthenticationError — usuário não encontrado)
     for (let i = 0; i < 5; i++) {
-      await expect(makeApi().login(username, 'Pass1!')).rejects.toThrow(AuthenticationError);
+      await expect(makeApi().login(username, 'Pass1!')).rejects.toThrow(
+        AuthenticationError,
+      );
     }
 
     // 6ª tentativa: bloqueada por rate limiting
-    await expect(makeApi().login(username, 'Pass1!')).rejects.toThrow(UserInputError);
+    await expect(makeApi().login(username, 'Pass1!')).rejects.toThrow(
+      UserInputError,
+    );
   });
 
   it('reseta o contador após login bem-sucedido', async () => {
@@ -105,18 +120,29 @@ describe('LoginApi.login — rate limiting', () => {
     mockUserDb.getUserByUserName.mockResolvedValueOnce(null);
     mockUserDb.getUserByUserName.mockResolvedValueOnce(null);
     // Terceira: sucesso
-    mockUserDb.getUserByUserName.mockResolvedValue({ id: '5', passwordHash: hash });
+    mockUserDb.getUserByUserName.mockResolvedValue({
+      id: '5',
+      passwordHash: hash,
+    });
     mockUserDb.setToken.mockResolvedValue();
 
-    await expect(makeApi().login(username, 'Pass1!')).rejects.toThrow(AuthenticationError);
-    await expect(makeApi().login(username, 'Pass1!')).rejects.toThrow(AuthenticationError);
+    await expect(makeApi().login(username, 'Pass1!')).rejects.toThrow(
+      AuthenticationError,
+    );
+    await expect(makeApi().login(username, 'Pass1!')).rejects.toThrow(
+      AuthenticationError,
+    );
 
     // Login com senha correta reseta o contador
-    await expect(makeApi().login(username, 'SenhaValida1')).resolves.toEqual({ userId: '5' });
+    await expect(makeApi().login(username, 'SenhaValida1')).resolves.toEqual({
+      userId: '5',
+    });
 
     // Agora pode tentar novamente normalmente (contador zerado)
     mockUserDb.getUserByUserName.mockResolvedValue(null);
-    await expect(makeApi().login(username, 'Pass1!')).rejects.toThrow(AuthenticationError);
+    await expect(makeApi().login(username, 'Pass1!')).rejects.toThrow(
+      AuthenticationError,
+    );
   });
 });
 
@@ -124,7 +150,9 @@ describe('LoginApi.login — rate limiting', () => {
 
 describe('LoginApi.logout — não autenticado', () => {
   it('lança AuthenticationError', async () => {
-    await expect(makeApi('').logout('alice')).rejects.toThrow(AuthenticationError);
+    await expect(makeApi('').logout('alice')).rejects.toThrow(
+      AuthenticationError,
+    );
   });
 });
 
@@ -132,7 +160,9 @@ describe('LoginApi.logout — usuário diferente do logado', () => {
   it('lança AuthenticationError', async () => {
     mockUserDb.getUserByUserName.mockResolvedValue({ id: '99' });
 
-    await expect(makeApi('1').logout('outro')).rejects.toThrow(AuthenticationError);
+    await expect(makeApi('1').logout('outro')).rejects.toThrow(
+      AuthenticationError,
+    );
   });
 });
 
@@ -153,13 +183,15 @@ describe('LoginApi.logout — sucesso', () => {
 
 describe('Mutation.login (resolver)', () => {
   it('delega para loginApi.login com userName e password', async () => {
-    const mockLoginApi = { login: jest.fn().mockResolvedValue({ userId: '1' }) };
+    const mockLoginApi = {
+      login: jest.fn().mockResolvedValue({ userId: '1' }),
+    };
     const ctx = { dataSources: { loginApi: mockLoginApi } };
 
     const result = await loginResolvers.Mutation.login(
       null,
       { data: { userName: 'alice', password: 'Pass1!' } },
-      ctx
+      ctx,
     );
 
     expect(mockLoginApi.login).toHaveBeenCalledWith('alice', 'Pass1!');
@@ -172,7 +204,11 @@ describe('Mutation.logout (resolver)', () => {
     const mockLoginApi = { logout: jest.fn().mockResolvedValue(true) };
     const ctx = { dataSources: { loginApi: mockLoginApi } };
 
-    const result = await loginResolvers.Mutation.logout(null, { userName: 'alice' }, ctx);
+    const result = await loginResolvers.Mutation.logout(
+      null,
+      { userName: 'alice' },
+      ctx,
+    );
 
     expect(mockLoginApi.logout).toHaveBeenCalledWith('alice');
     expect(result).toBe(true);

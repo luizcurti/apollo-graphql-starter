@@ -16,7 +16,9 @@ import { CommentSQLDataSource } from './graphql/schema/comment/datasources';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET || JWT_SECRET.length < 32) {
-  logger.fatal('JWT_SECRET is missing or too short (min 32 characters). Exiting.');
+  logger.fatal(
+    'JWT_SECRET is missing or too short (min 32 characters). Exiting.',
+  );
   process.exit(1);
 }
 

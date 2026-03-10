@@ -1,4 +1,7 @@
-import { checkIsLoggedIn, checkOwner } from '../graphql/schema/login/utils/login-functions';
+import {
+  checkIsLoggedIn,
+  checkOwner,
+} from '../graphql/schema/login/utils/login-functions';
 import { AuthenticationError } from 'apollo-server-errors';
 
 describe('checkIsLoggedIn', () => {
@@ -25,7 +28,9 @@ describe('checkOwner', () => {
   });
 
   it('throws AuthenticationError when logged user is not the resource owner', () => {
-    expect(() => checkOwner('user-123', 'user-456')).toThrow(AuthenticationError);
+    expect(() => checkOwner('user-123', 'user-456')).toThrow(
+      AuthenticationError,
+    );
   });
 
   it('does not throw when logged user is the resource owner', () => {

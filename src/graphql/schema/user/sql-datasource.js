@@ -2,7 +2,10 @@ import bcrypt from 'bcrypt';
 import DataLoader from 'dataloader';
 import { ValidationError } from 'apollo-server-errors';
 import { SQLDatasource } from '../../datasources/sql/sql-datasource';
-import { validateUserName, validateUserPassword } from './utils/user-repository';
+import {
+  validateUserName,
+  validateUserPassword,
+} from './utils/user-repository';
 
 const userReducer = (row) => ({
   id: String(row.id),
@@ -27,8 +30,13 @@ export class UserSQLDataSource extends SQLDatasource {
       });
     });
     this._byUserNameLoader = new DataLoader(async (userNames) => {
-      const rows = await this.db(this.tableName).whereIn('user_name', userNames);
-      return userNames.map((un) => rows.find((r) => r.user_name === un) || null);
+      const rows = await this.db(this.tableName).whereIn(
+        'user_name',
+        userNames,
+      );
+      return userNames.map(
+        (un) => rows.find((r) => r.user_name === un) || null,
+      );
     });
   }
 
@@ -68,8 +76,7 @@ export class UserSQLDataSource extends SQLDatasource {
       throw new ValidationError(`userName ${userName} has already been taken`);
     }
 
-    const [maxIndexRef] = await this.db(this.tableName)
-      .max('index_ref as val');
+    const [maxIndexRef] = await this.db(this.tableName).max('index_ref as val');
     const indexRef = (maxIndexRef.val || 0) + 1;
 
     const passwordHash = await bcrypt.hash(password, 12);
@@ -98,7 +105,9 @@ export class UserSQLDataSource extends SQLDatasource {
         .whereNot('id', userId)
         .first();
       if (existing) {
-        throw new ValidationError(`userName ${userName} has already been taken`);
+        throw new ValidationError(
+          `userName ${userName} has already been taken`,
+        );
       }
       updates.user_name = userName;
     }

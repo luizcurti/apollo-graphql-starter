@@ -19,7 +19,11 @@ const mockCommentDb = {
 
 const makeCtx = (loggedUserId = '') => ({
   loggedUserId,
-  dataSources: { postDb: mockPostDb, userDb: mockUserDb, commentDb: mockCommentDb },
+  dataSources: {
+    postDb: mockPostDb,
+    userDb: mockUserDb,
+    commentDb: mockCommentDb,
+  },
 });
 
 beforeEach(() => jest.clearAllMocks());
@@ -40,7 +44,11 @@ describe('Query.post', () => {
   it('retorna null quando post não existe', async () => {
     mockPostDb.getPost.mockResolvedValue(null);
 
-    const result = await postResolvers.Query.post(null, { id: '999' }, makeCtx());
+    const result = await postResolvers.Query.post(
+      null,
+      { id: '999' },
+      makeCtx(),
+    );
 
     expect(result).toBeNull();
   });
@@ -49,7 +57,7 @@ describe('Query.post', () => {
     mockPostDb.getPost.mockResolvedValue({ id: '1' });
 
     await expect(
-      postResolvers.Query.post(null, { id: '1' }, makeCtx(''))
+      postResolvers.Query.post(null, { id: '1' }, makeCtx('')),
     ).resolves.not.toThrow();
   });
 });
@@ -57,7 +65,7 @@ describe('Query.post', () => {
 describe('Query.posts', () => {
   it('lança AuthenticationError quando não está autenticado', async () => {
     await expect(
-      postResolvers.Query.posts(null, {}, makeCtx(''))
+      postResolvers.Query.posts(null, {}, makeCtx('')),
     ).rejects.toThrow(AuthenticationError);
 
     expect(mockPostDb.getPosts).not.toHaveBeenCalled();
@@ -67,7 +75,11 @@ describe('Query.posts', () => {
     const posts = [{ id: '1' }, { id: '2' }, { id: '3' }];
     mockPostDb.getPosts.mockResolvedValue(posts);
 
-    const result = await postResolvers.Query.posts(null, { input: {} }, makeCtx('user1'));
+    const result = await postResolvers.Query.posts(
+      null,
+      { input: {} },
+      makeCtx('user1'),
+    );
 
     expect(mockPostDb.getPosts).toHaveBeenCalledWith({});
     expect(result).toHaveLength(3);
@@ -88,7 +100,11 @@ describe('Query.posts', () => {
 describe('Mutation.createPost', () => {
   it('lança AuthenticationError quando não está autenticado', async () => {
     await expect(
-      postResolvers.Mutation.createPost(null, { data: { title: 'T', body: 'B' } }, makeCtx(''))
+      postResolvers.Mutation.createPost(
+        null,
+        { data: { title: 'T', body: 'B' } },
+        makeCtx(''),
+      ),
     ).rejects.toThrow(AuthenticationError);
 
     expect(mockPostDb.createPost).not.toHaveBeenCalled();
@@ -101,7 +117,7 @@ describe('Mutation.createPost', () => {
     const result = await postResolvers.Mutation.createPost(
       null,
       { data: { title: 'T', body: 'B' } },
-      makeCtx('user1')
+      makeCtx('user1'),
     );
 
     expect(mockPostDb.createPost).toHaveBeenCalledWith({
@@ -118,7 +134,7 @@ describe('Mutation.createPost', () => {
     await postResolvers.Mutation.createPost(
       null,
       { data: { title: 'T', body: 'B' } },
-      makeCtx('user1')
+      makeCtx('user1'),
     );
 
     const callArg = mockPostDb.createPost.mock.calls[0][0];
@@ -132,8 +148,8 @@ describe('Mutation.updatePost', () => {
       postResolvers.Mutation.updatePost(
         null,
         { postId: '1', data: { title: 'X' } },
-        makeCtx('')
-      )
+        makeCtx(''),
+      ),
     ).rejects.toThrow(AuthenticationError);
 
     expect(mockPostDb.updatePost).not.toHaveBeenCalled();
@@ -146,24 +162,28 @@ describe('Mutation.updatePost', () => {
     const result = await postResolvers.Mutation.updatePost(
       null,
       { postId: '1', data: { title: 'Atualizado' } },
-      makeCtx('user1')
+      makeCtx('user1'),
     );
 
-    expect(mockPostDb.updatePost).toHaveBeenCalledWith('1', { title: 'Atualizado' }, 'user1');
+    expect(mockPostDb.updatePost).toHaveBeenCalledWith(
+      '1',
+      { title: 'Atualizado' },
+      'user1',
+    );
     expect(result).toEqual(updated);
   });
 
   it('repassa AuthenticationError se datasource rejeitar por não ser dono', async () => {
     mockPostDb.updatePost.mockRejectedValue(
-      new AuthenticationError('You cannot update this post.')
+      new AuthenticationError('You cannot update this post.'),
     );
 
     await expect(
       postResolvers.Mutation.updatePost(
         null,
         { postId: '1', data: { title: 'X' } },
-        makeCtx('user2')
-      )
+        makeCtx('user2'),
+      ),
     ).rejects.toThrow(AuthenticationError);
   });
 });
@@ -171,7 +191,7 @@ describe('Mutation.updatePost', () => {
 describe('Mutation.deletePost', () => {
   it('lança AuthenticationError quando não está autenticado', async () => {
     await expect(
-      postResolvers.Mutation.deletePost(null, { postId: '1' }, makeCtx(''))
+      postResolvers.Mutation.deletePost(null, { postId: '1' }, makeCtx('')),
     ).rejects.toThrow(AuthenticationError);
 
     expect(mockPostDb.deletePost).not.toHaveBeenCalled();
@@ -183,7 +203,7 @@ describe('Mutation.deletePost', () => {
     const result = await postResolvers.Mutation.deletePost(
       null,
       { postId: '1' },
-      makeCtx('user1')
+      makeCtx('user1'),
     );
 
     expect(mockPostDb.deletePost).toHaveBeenCalledWith('1', 'user1');
@@ -192,11 +212,15 @@ describe('Mutation.deletePost', () => {
 
   it('repassa AuthenticationError se datasource rejeitar por não ser dono', async () => {
     mockPostDb.deletePost.mockRejectedValue(
-      new AuthenticationError('You cannot delete this post.')
+      new AuthenticationError('You cannot delete this post.'),
     );
 
     await expect(
-      postResolvers.Mutation.deletePost(null, { postId: '1' }, makeCtx('user2'))
+      postResolvers.Mutation.deletePost(
+        null,
+        { postId: '1' },
+        makeCtx('user2'),
+      ),
     ).rejects.toThrow(AuthenticationError);
   });
 });
@@ -208,7 +232,11 @@ describe('Post.user (field resolver)', () => {
     const user = { id: 'user1', userName: 'alice' };
     mockUserDb.batchLoadById.mockResolvedValue(user);
 
-    const result = await postResolvers.Post.user({ userId: 'user1' }, null, makeCtx());
+    const result = await postResolvers.Post.user(
+      { userId: 'user1' },
+      null,
+      makeCtx(),
+    );
 
     expect(mockUserDb.batchLoadById).toHaveBeenCalledWith('user1');
     expect(result).toEqual(user);
@@ -220,7 +248,11 @@ describe('Post.comments (field resolver)', () => {
     const comments = [{ id: '10' }, { id: '11' }];
     mockCommentDb.batchLoad.mockResolvedValue(comments);
 
-    const result = await postResolvers.Post.comments({ id: 'post1' }, null, makeCtx());
+    const result = await postResolvers.Post.comments(
+      { id: 'post1' },
+      null,
+      makeCtx(),
+    );
 
     expect(mockCommentDb.batchLoad).toHaveBeenCalledWith('post1');
     expect(result).toEqual(comments);
@@ -229,7 +261,11 @@ describe('Post.comments (field resolver)', () => {
   it('retorna array vazio quando post não tem comentários', async () => {
     mockCommentDb.batchLoad.mockResolvedValue([]);
 
-    const result = await postResolvers.Post.comments({ id: 'post1' }, null, makeCtx());
+    const result = await postResolvers.Post.comments(
+      { id: 'post1' },
+      null,
+      makeCtx(),
+    );
 
     expect(result).toEqual([]);
   });

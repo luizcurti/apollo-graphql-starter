@@ -16,7 +16,9 @@ const checkRateLimit = (userName) => {
   if (entry && now < entry.resetAt) {
     if (entry.count >= MAX_ATTEMPTS) {
       throw new UserInputError(
-        `Too many login attempts. Try again in ${Math.ceil((entry.resetAt - now) / 60000)} minute(s).`,
+        `Too many login attempts. Try again in ${Math.ceil(
+          (entry.resetAt - now) / 60000,
+        )} minute(s).`,
       );
     }
     entry.count += 1;
@@ -98,4 +100,3 @@ export class LoginApi extends DataSource {
     });
   }
 }
-
