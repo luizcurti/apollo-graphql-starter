@@ -8,7 +8,6 @@
     "test:watch": "jest --watch",
     "test:ci": "npm run lint:check && npm run test && npm run build",
     "dev": "nodemon -e 'js' -r dotenv/config -r sucrase/register src/index.js",
-    "server": "json-server --watch db.json",
     "build": "rimraf ./dist && sucrase ./src -d ./dist --transforms imports",
     "start": "node -r dotenv/config dist/index.js",
     "lint": "eslint src/",
@@ -17,6 +16,10 @@
     "lint:ci": "eslint src/ --max-warnings=10",
     "format": "prettier --write src/",
     "format:check": "prettier --check src/",
+    "migrate": "knex --knexfile src/knex/knexfile.js migrate:latest",
+    "migrate:rollback": "knex --knexfile src/knex/knexfile.js migrate:rollback",
+    "seed": "knex --knexfile src/knex/knexfile.js seed:run",
+    "db:setup": "npm run migrate && npm run seed",
     "audit:high": "npm audit --audit-level=high",
     "audit:ci": "npm audit --audit-level=high || echo 'Security vulnerabilities found in legacy dependencies'",
     "security": "npm run audit:ci"

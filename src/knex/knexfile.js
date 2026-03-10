@@ -23,6 +23,9 @@ module.exports = {
       tableName: 'knex_migrations',
       directory: resolve(__dirname, 'migrations'),
     },
+    seeds: {
+      directory: resolve(__dirname, 'seeds'),
+    },
   },
   production: {
     client: process.env.DATABASE_CLIENT || 'mysql2',
@@ -40,6 +43,9 @@ module.exports = {
     migrations: {
       tableName: 'knex_migrations',
       directory: resolve(__dirname, 'migrations'),
+    },
+    seeds: {
+      directory: resolve(__dirname, 'seeds'),
     },
   },
 };
