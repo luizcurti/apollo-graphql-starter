@@ -1,8 +1,18 @@
 import DataLoader from 'dataloader';
-import { AuthenticationError, UserInputError, ValidationError } from 'apollo-server-errors';
+import {
+  AuthenticationError,
+  UserInputError,
+  ValidationError,
+} from 'apollo-server-errors';
 import { SQLDatasource } from '../../datasources/sql/sql-datasource';
 
-const ALLOWED_SORT_COLUMNS = new Set(['id', 'title', 'user_id', 'index_ref', 'created_at']);
+const ALLOWED_SORT_COLUMNS = new Set([
+  'id',
+  'title',
+  'user_id',
+  'index_ref',
+  'created_at',
+]);
 
 const postReducer = (row) => ({
   id: String(row.id),

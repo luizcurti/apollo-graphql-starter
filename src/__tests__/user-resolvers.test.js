@@ -35,7 +35,11 @@ describe('Query.user', () => {
     const user = { id: '1', userName: 'alice' };
     mockUserDb.getUser.mockResolvedValue(user);
 
-    const result = await userResolvers.Query.user(null, { id: '1' }, makeCtx('user1'));
+    const result = await userResolvers.Query.user(
+      null,
+      { id: '1' },
+      makeCtx('user1'),
+    );
 
     expect(mockUserDb.getUser).toHaveBeenCalledWith('1');
     expect(result).toEqual(user);

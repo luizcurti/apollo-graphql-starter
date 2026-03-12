@@ -1,0 +1,921 @@
+{
+  "info": {
+    "name": "GraphQL Node API",
+    "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "description": "Collection completa para a API GraphQL Node.\n\n**Antes de começar:**\n1. Rode `docker compose up -d && npm run db:setup && npm run dev`\n2. Importe este arquivo no Postman\n3. Selecione o environment **GraphQL Node — Local**\n4. Execute **🔐 Login** primeiro — o cookie `jwtToken` será setado automaticamente\n\n**Usuários seed disponíveis** (senha: `Senha123`):\n- `elisa.pereira` (id: 602)\n- `enzo_barros` (id: 903)\n- `danilo95` (id: 470)\n- `talita.melo` (id: 115)\n- `heloisa.albuquerque` (id: 812)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4003/graphql", "type": "string" },
+    { "key": "loggedUserId", "value": "", "type": "string" },
+    { "key": "createdUserId", "value": "", "type": "string" },
+    { "key": "createdPostId", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "🔐 Auth",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Sem erros GraphQL', () => pm.expect(body.errors).to.be.undefined);",
+                  "pm.test('Retorna userId', () => pm.expect(body.data.login.userId).to.be.a('string'));",
+                  "",
+                  "if (body.data && body.data.login) {",
+                  "  pm.collectionVariables.set('loggedUserId', body.data.login.userId);",
+                  "  console.log('loggedUserId salvo:', body.data.login.userId);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mutation LOGIN($userName: String!, $password: String!) { login(data: { userName: $userName, password: $password }) { userId } }\",\n  \"variables\": {\n    \"userName\": \"elisa.pereira\",\n    \"password\": \"Senha123\"\n  }\n}"
+            },
+            "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] }
+          }
+        },
+        {
+          "name": "Login — senha incorreta (erro esperado)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Retorna erro de autenticação', () => {",
+                  "  pm.expect(body.errors).to.be.an('array');",
+                  "  pm.expect(body.errors[0].message).to.include('Invalid password');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mutation { login(data: { userName: \\\"elisa.pereira\\\", password: \\\"SenhaErrada1\\\" }) { userId } }\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] }
+          }
+        },
+        {
+          "name": "Logout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Sem erros GraphQL', () => pm.expect(body.errors).to.be.undefined);",
+                  "pm.test('Retorna true', () => pm.expect(body.data.logout).to.be.true);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mutation LOGOUT($userName: String!) { logout(userName: $userName) }\",\n  \"variables\": {\n    \"userName\": \"elisa.pereira\"\n  }\n}"
+            },
+            "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "👤 Users",
+      "item": [
+        {
+          "name": "Query — user por id (requer login)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Sem erros GraphQL', () => pm.expect(body.errors).to.be.undefined);",
+                  "pm.test('Retorna user com id correto', () => {",
+                  "  pm.expect(body.data.user.id).to.equal('602');",
+                  "  pm.expect(body.data.user.userName).to.equal('elisa.pereira');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query GET_USER($id: ID!) { user(id: $id) { id firstName lastName userName indexRef createdAt posts { id title } } }\",\n  \"variables\": { \"id\": \"602\" }\n}"
+            },
+            "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] }
+          }
+        },
+        {
+          "name": "Query — users (lista com filtros)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Sem erros GraphQL', () => pm.expect(body.errors).to.be.undefined);",
+                  "pm.test('Retorna array de usuários', () => {",
+                  "  pm.expect(body.data.users).to.be.an('array');",
+                  "  pm.expect(body.data.users.length).to.be.greaterThan(0);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query GET_USERS($input: ApiFiltersInput) { users(input: $input) { id firstName lastName userName indexRef createdAt } }\",\n  \"variables\": {\n    \"input\": {\n      \"_sort\": \"index_ref\",\n      \"_order\": \"ASC\",\n      \"_start\": 0,\n      \"_limit\": 5\n    }\n  }\n}"
+            },
+            "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] }
+          }
+        },
+        {
+          "name": "Query — users sem login (erro esperado)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Retorna AuthenticationError', () => {",
+                  "  pm.expect(body.errors).to.be.an('array');",
+                  "  pm.expect(body.errors[0].extensions.code).to.equal('UNAUTHENTICATED');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Cookie", "value": "", "description": "Cookie limpo — simula usuário não autenticado" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query { users { id userName } }\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] }
+          }
+        },
+        {
+          "name": "Mutation — createUser",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Sem erros GraphQL', () => pm.expect(body.errors).to.be.undefined);",
+                  "pm.test('Retorna usuário criado', () => {",
+                  "  pm.expect(body.data.createUser.userName).to.equal('test.user99');",
+                  "  pm.expect(body.data.createUser.id).to.be.a('string');",
+                  "});",
+                  "",
+                  "if (body.data && body.data.createUser) {",
+                  "  pm.collectionVariables.set('createdUserId', body.data.createUser.id);",
+                  "  console.log('createdUserId salvo:', body.data.createUser.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mutation CREATE_USER($data: CreateUserInput!) { createUser(data: $data) { id firstName lastName userName indexRef createdAt } }\",\n  \"variables\": {\n    \"data\": {\n      \"firstName\": \"Test\",\n      \"lastName\": \"User\",\n      \"userName\": \"test.user99\",\n      \"password\": \"Senha123\"\n    }\n  }\n}"
+            },
+            "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] }
+          }
+        },
+        {
+          "name": "Mutation — createUser userName duplicado (erro esperado)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Retorna ValidationError de userName duplicado', () => {",
+                  "  pm.expect(body.errors).to.be.an('array');",
+                  "  pm.expect(body.errors[0].message).to.include('has already been taken');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mutation { createUser(data: { firstName: \\\"Dup\\\", lastName: \\\"User\\\", userName: \\\"elisa.pereira\\\", password: \\\"Senha123\\\" }) { id } }\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] }
+          }
+        },
+        {
+          "name": "Mutation — updateUser (requer login como dono)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Garante que o userId salvo é o do usuário logado.",
+                  "// Execute 'Login' como elisa.pereira antes desta request.",
+                  "console.log('loggedUserId:', pm.collectionVariables.get('loggedUserId'));"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Sem erros GraphQL', () => pm.expect(body.errors).to.be.undefined);",
+                  "pm.test('Retorna usuário atualizado', () => {",
+                  "  pm.expect(body.data.updateUser.firstName).to.equal('Elisa Atualizada');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mutation UPDATE_USER($userId: ID!, $data: UpdateUserInput!) { updateUser(userId: $userId, data: $data) { id firstName lastName userName } }\",\n  \"variables\": {\n    \"userId\": \"602\",\n    \"data\": {\n      \"firstName\": \"Elisa Atualizada\"\n    }\n  }\n}"
+            },
+            "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] }
+          }
+        },
+        {
+          "name": "Mutation — updateUser outro usuário (erro esperado)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Retorna AuthenticationError de ownership', () => {",
+                  "  pm.expect(body.errors).to.be.an('array');",
+                  "  pm.expect(body.errors[0].extensions.code).to.equal('UNAUTHENTICATED');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mutation { updateUser(userId: \\\"903\\\", data: { firstName: \\\"Hack\\\" }) { id } }\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] }
+          }
+        },
+        {
+          "name": "Mutation — deleteUser (requer login como dono)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Sem erros GraphQL', () => pm.expect(body.errors).to.be.undefined);",
+                  "pm.test('Retorna true', () => {",
+                  "  pm.expect(body.data.deleteUser).to.be.true;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mutation DELETE_USER($userId: ID!) { deleteUser(userId: $userId) }\",\n  \"variables\": {\n    \"userId\": \"{{createdUserId}}\"\n  }\n}"
+            },
+            "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📝 Posts",
+      "item": [
+        {
+          "name": "Query — post por id (público)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Sem erros GraphQL', () => pm.expect(body.errors).to.be.undefined);",
+                  "pm.test('Retorna post com relações', () => {",
+                  "  const post = body.data.post;",
+                  "  pm.expect(post.id).to.equal('645');",
+                  "  pm.expect(post.user).to.have.property('userName');",
+                  "  pm.expect(post.comments).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query GET_POST($id: ID!) { post(id: $id) { id title body indexRef createdAt user { id firstName lastName userName } comments { id comment createdAt user { userName } } } }\",\n  \"variables\": { \"id\": \"645\" }\n}"
+            },
+            "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] }
+          }
+        },
+        {
+          "name": "Query — posts (lista com filtros, requer login)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Sem erros GraphQL', () => pm.expect(body.errors).to.be.undefined);",
+                  "pm.test('Retorna array com máximo 3 posts', () => {",
+                  "  pm.expect(body.data.posts).to.be.an('array');",
+                  "  pm.expect(body.data.posts.length).to.be.at.most(3);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query GET_POSTS($input: ApiFiltersInput) { posts(input: $input) { id title body indexRef createdAt user { userName } } }\",\n  \"variables\": {\n    \"input\": {\n      \"_sort\": \"created_at\",\n      \"_order\": \"DESC\",\n      \"_limit\": 3\n    }\n  }\n}"
+            },
+            "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] }
+          }
+        },
+        {
+          "name": "Mutation — createPost (requer login)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Sem erros GraphQL', () => pm.expect(body.errors).to.be.undefined);",
+                  "pm.test('Post criado com userId do contexto (não do input)', () => {",
+                  "  const post = body.data.createPost;",
+                  "  pm.expect(post.id).to.be.a('string');",
+                  "  pm.expect(post.title).to.equal('Meu novo post via Postman');",
+                  "  pm.expect(post.user.id).to.equal(pm.collectionVariables.get('loggedUserId'));",
+                  "});",
+                  "",
+                  "if (body.data && body.data.createPost) {",
+                  "  pm.collectionVariables.set('createdPostId', body.data.createPost.id);",
+                  "  console.log('createdPostId salvo:', body.data.createPost.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mutation CREATE_POST($data: CreatePostInput!) { createPost(data: $data) { id title body indexRef createdAt user { id userName } } }\",\n  \"variables\": {\n    \"data\": {\n      \"title\": \"Meu novo post via Postman\",\n      \"body\": \"Conteúdo do post criado pela collection de testes.\"\n    }\n  }\n}"
+            },
+            "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] }
+          }
+        },
+        {
+          "name": "Mutation — createPost sem login (erro esperado)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Retorna AuthenticationError', () => {",
+                  "  pm.expect(body.errors).to.be.an('array');",
+                  "  pm.expect(body.errors[0].extensions.code).to.equal('UNAUTHENTICATED');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Cookie", "value": "", "description": "Sem cookie — simula não autenticado" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mutation { createPost(data: { title: \\\"Hack\\\", body: \\\"Tentativa sem login\\\" }) { id } }\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] }
+          }
+        },
+        {
+          "name": "Mutation — updatePost (dono do post)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Sem erros GraphQL', () => pm.expect(body.errors).to.be.undefined);",
+                  "pm.test('Título atualizado', () => {",
+                  "  pm.expect(body.data.updatePost.title).to.equal('Título Atualizado via Postman');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mutation UPDATE_POST($postId: ID!, $data: UpdatePostInput!) { updatePost(postId: $postId, data: $data) { id title body } }\",\n  \"variables\": {\n    \"postId\": \"{{createdPostId}}\",\n    \"data\": {\n      \"title\": \"Título Atualizado via Postman\"\n    }\n  }\n}"
+            },
+            "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] }
+          }
+        },
+        {
+          "name": "Mutation — updatePost de outro usuário (erro esperado)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Retorna AuthenticationError de ownership', () => {",
+                  "  pm.expect(body.errors).to.be.an('array');",
+                  "  pm.expect(body.errors[0].extensions.code).to.equal('UNAUTHENTICATED');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mutation { updatePost(postId: \\\"50\\\", data: { title: \\\"Hack\\\" }) { id } }\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] }
+          }
+        },
+        {
+          "name": "Mutation — deletePost (dono do post)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Sem erros GraphQL', () => pm.expect(body.errors).to.be.undefined);",
+                  "pm.test('Retorna true', () => pm.expect(body.data.deletePost).to.be.true);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mutation DELETE_POST($postId: ID!) { deletePost(postId: $postId) }\",\n  \"variables\": {\n    \"postId\": \"{{createdPostId}}\"\n  }\n}"
+            },
+            "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "💬 Comments",
+      "item": [
+        {
+          "name": "Mutation — createComment (requer login)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Sem erros GraphQL', () => pm.expect(body.errors).to.be.undefined);",
+                  "pm.test('Comentário criado com user correto', () => {",
+                  "  const comment = body.data.createComment;",
+                  "  pm.expect(comment.id).to.be.a('string');",
+                  "  pm.expect(comment.comment).to.equal('Ótimo post! Comentado via Postman.');",
+                  "  pm.expect(comment.user.id).to.equal(pm.collectionVariables.get('loggedUserId'));",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mutation CREATE_COMMENT($data: CreateCommentInput!) { createComment(data: $data) { id comment createdAt user { id userName } } }\",\n  \"variables\": {\n    \"data\": {\n      \"comment\": \"Ótimo post! Comentado via Postman.\",\n      \"postId\": \"361\"\n    }\n  }\n}"
+            },
+            "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] }
+          }
+        },
+        {
+          "name": "Mutation — createComment sem login (erro esperado)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Retorna AuthenticationError', () => {",
+                  "  pm.expect(body.errors).to.be.an('array');",
+                  "  pm.expect(body.errors[0].extensions.code).to.equal('UNAUTHENTICATED');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Cookie", "value": "", "description": "Sem cookie" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mutation { createComment(data: { comment: \\\"Tentativa sem login\\\", postId: \\\"361\\\" }) { id } }\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] }
+          }
+        },
+        {
+          "name": "Mutation — createComment duplicado (erro esperado)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Retorna ValidationError de duplicata', () => {",
+                  "  pm.expect(body.errors).to.be.an('array');",
+                  "  pm.expect(body.errors[0].message).to.include('Comment already created');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mutation { createComment(data: { comment: \\\"Ótimo post! Comentado via Postman.\\\", postId: \\\"361\\\" }) { id } }\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🛡️ Segurança",
+      "item": [
+        {
+          "name": "SQL Injection em _sort (erro esperado)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Bloqueia coluna inválida com UserInputError', () => {",
+                  "  pm.expect(body.errors).to.be.an('array');",
+                  "  pm.expect(body.errors[0].message).to.include('Invalid sort column');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query { users(input: { _sort: \\\"password_hash\\\" }) { id } }\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] }
+          }
+        },
+        {
+          "name": "Depth limit — query muito profunda (erro esperado)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('Status 400 ou errors', () => {",
+                  "  const hasErrors = body.errors && body.errors.length > 0;",
+                  "  pm.expect(hasErrors).to.be.true;",
+                  "  pm.expect(body.errors[0].message).to.include('exceeds maximum operation depth');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query { post(id: \\\"645\\\") { user { posts { user { posts { user { posts { user { id } } } } } } } } }\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] }
+          }
+        },
+        {
+          "name": "Rate limit login — 6ª tentativa bloqueada",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('Status 200 com erro de rate limit ou autenticação', () => {",
+                  "  pm.expect(body.errors).to.be.an('array');",
+                  "  const msg = body.errors[0].message;",
+                  "  const isRateLimited = msg.includes('Too many login attempts');",
+                  "  const isAuthError = msg.includes('User does not exist') || msg.includes('Invalid password');",
+                  "  pm.expect(isRateLimited || isAuthError).to.be.true;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mutation { login(data: { userName: \\\"usuario.inexistente\\\", password: \\\"Senha123\\\" }) { userId } }\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔄 Fluxo completo (Happy Path)",
+      "description": "Execute as requests desta pasta em ordem para testar o fluxo completo: login → criar post → comentar → deletar → logout.",
+      "item": [
+        {
+          "name": "1. Login como talita.melo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('Login ok', () => pm.expect(body.errors).to.be.undefined);",
+                  "if (body.data) pm.collectionVariables.set('loggedUserId', body.data.login.userId);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mutation { login(data: { userName: \\\"talita.melo\\\", password: \\\"Senha123\\\" }) { userId } }\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] }
+          }
+        },
+        {
+          "name": "2. Criar post",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('Post criado', () => pm.expect(body.errors).to.be.undefined);",
+                  "if (body.data) pm.collectionVariables.set('createdPostId', body.data.createPost.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mutation { createPost(data: { title: \\\"Post do Happy Path\\\", body: \\\"Conteúdo do fluxo completo.\\\" }) { id title user { userName } } }\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] }
+          }
+        },
+        {
+          "name": "3. Buscar post criado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('Post encontrado', () => {",
+                  "  pm.expect(body.errors).to.be.undefined;",
+                  "  pm.expect(body.data.post.title).to.equal('Post do Happy Path');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query($id: ID!) { post(id: $id) { id title body user { userName } comments { id } } }\",\n  \"variables\": { \"id\": \"{{createdPostId}}\" }\n}"
+            },
+            "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] }
+          }
+        },
+        {
+          "name": "4. Atualizar post",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('Post atualizado', () => {",
+                  "  pm.expect(body.errors).to.be.undefined;",
+                  "  pm.expect(body.data.updatePost.title).to.equal('Post Atualizado — Happy Path');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mutation($postId: ID!, $data: UpdatePostInput!) { updatePost(postId: $postId, data: $data) { id title } }\",\n  \"variables\": {\n    \"postId\": \"{{createdPostId}}\",\n    \"data\": { \"title\": \"Post Atualizado — Happy Path\" }\n  }\n}"
+            },
+            "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] }
+          }
+        },
+        {
+          "name": "5. Deletar post",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('Post deletado', () => {",
+                  "  pm.expect(body.errors).to.be.undefined;",
+                  "  pm.expect(body.data.deletePost).to.be.true;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mutation($postId: ID!) { deletePost(postId: $postId) }\",\n  \"variables\": { \"postId\": \"{{createdPostId}}\" }\n}"
+            },
+            "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] }
+          }
+        },
+        {
+          "name": "6. Logout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('Logout ok', () => {",
+                  "  pm.expect(body.errors).to.be.undefined;",
+                  "  pm.expect(body.data.logout).to.be.true;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mutation { logout(userName: \\\"talita.melo\\\") }\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] }
+          }
+        }
+      ]
+    }
+  ]
+}

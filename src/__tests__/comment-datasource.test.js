@@ -27,14 +27,6 @@ const makeQb = (overrides = {}) => ({
   ...overrides,
 });
 
-const makeDs = (qbOverrides = {}) => {
-  const qb = makeQb(qbOverrides);
-  const db = jest.fn(() => qb);
-  const ds = new CommentSQLDataSource(db);
-  ds.initialize({ context: {}, cache: undefined });
-  return { ds, db, qb };
-};
-
 beforeEach(() => jest.clearAllMocks());
 
 // ─── commentReducer (via getByPostId) ────────────────────────────────────────
@@ -62,7 +54,10 @@ describe('CommentSQLDataSource — commentReducer', () => {
 describe('CommentSQLDataSource.getById', () => {
   it('retorna o comentário correto (não o query builder)', async () => {
     const row = makeCommentRow();
-    const qb = { where: jest.fn().mockReturnThis(), first: jest.fn().mockResolvedValue(row) };
+    const qb = {
+      where: jest.fn().mockReturnThis(),
+      first: jest.fn().mockResolvedValue(row),
+    };
     const db = jest.fn(() => qb);
     const ds = new CommentSQLDataSource(db);
     ds.initialize({ context: {}, cache: undefined });

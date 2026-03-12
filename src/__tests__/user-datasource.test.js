@@ -122,9 +122,9 @@ describe('UserSQLDataSource.getUsers', () => {
 
   it('lança UserInputError para coluna de ordenação não permitida', () => {
     const { ds } = makeDs();
-    return expect(
-      ds.getUsers({ _sort: 'password_hash' }),
-    ).rejects.toThrow(UserInputError);
+    return expect(ds.getUsers({ _sort: 'password_hash' })).rejects.toThrow(
+      UserInputError,
+    );
   });
 
   it('lança UserInputError para tentativa de injeção em _sort', () => {
@@ -135,7 +135,14 @@ describe('UserSQLDataSource.getUsers', () => {
   });
 
   it('aceita colunas permitidas na whitelist', async () => {
-    const allowed = ['id', 'first_name', 'last_name', 'user_name', 'index_ref', 'created_at'];
+    const allowed = [
+      'id',
+      'first_name',
+      'last_name',
+      'user_name',
+      'index_ref',
+      'created_at',
+    ];
 
     for (const col of allowed) {
       const mockDb = jest.fn(() =>
@@ -159,14 +166,24 @@ describe('UserSQLDataSource.createUser', () => {
   it('lança ValidationError para userName inválido', () => {
     const { ds } = makeDs();
     return expect(
-      ds.createUser({ firstName: 'A', lastName: 'B', userName: '1invalid', password: 'Senha123' }),
+      ds.createUser({
+        firstName: 'A',
+        lastName: 'B',
+        userName: '1invalid',
+        password: 'Senha123',
+      }),
     ).rejects.toThrow(ValidationError);
   });
 
   it('lança UserInputError para senha fraca', () => {
     const { ds } = makeDs();
     return expect(
-      ds.createUser({ firstName: 'A', lastName: 'B', userName: 'valid.user', password: '123' }),
+      ds.createUser({
+        firstName: 'A',
+        lastName: 'B',
+        userName: 'valid.user',
+        password: '123',
+      }),
     ).rejects.toThrow();
   });
 
@@ -206,8 +223,9 @@ describe('UserSQLDataSource.createUser', () => {
       where: jest.fn().mockReturnThis(),
       whereNot: jest.fn().mockReturnThis(),
       whereIn: jest.fn().mockReturnThis(),
-      first: jest.fn()
-        .mockResolvedValueOnce(null)      // check duplicata
+      first: jest
+        .fn()
+        .mockResolvedValueOnce(null) // check duplicata
         .mockResolvedValueOnce(makeRow()), // getUser após insert
       insert: jest.fn().mockResolvedValue([10]),
       max: jest.fn().mockResolvedValue([{ val: 5 }]),
@@ -241,7 +259,8 @@ describe('UserSQLDataSource.createUser', () => {
       where: jest.fn().mockReturnThis(),
       whereNot: jest.fn().mockReturnThis(),
       whereIn: jest.fn().mockReturnThis(),
-      first: jest.fn()
+      first: jest
+        .fn()
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce(makeRow()),
       insert: jest.fn().mockResolvedValue([10]),
@@ -273,7 +292,8 @@ describe('UserSQLDataSource.createUser', () => {
       where: jest.fn().mockReturnThis(),
       whereNot: jest.fn().mockReturnThis(),
       whereIn: jest.fn().mockReturnThis(),
-      first: jest.fn()
+      first: jest
+        .fn()
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce(makeRow({ index_ref: 8 })),
       insert: jest.fn().mockResolvedValue([10]),
@@ -348,7 +368,10 @@ describe('UserSQLDataSource.updateUser', () => {
     const updateCall = qb.update.mock.calls[0][0];
     expect(updateCall).toHaveProperty('password_hash');
     expect(updateCall.password_hash).not.toBe('NovaSenha1');
-    const isValid = await bcrypt.compare('NovaSenha1', updateCall.password_hash);
+    const isValid = await bcrypt.compare(
+      'NovaSenha1',
+      updateCall.password_hash,
+    );
     expect(isValid).toBe(true);
   });
 });

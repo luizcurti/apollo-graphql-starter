@@ -1,4 +1,8 @@
-import { AuthenticationError, UserInputError, ValidationError } from 'apollo-server-errors';
+import {
+  AuthenticationError,
+  UserInputError,
+  ValidationError,
+} from 'apollo-server-errors';
 import { PostSQLDataSource } from '../graphql/schema/post/sql-datasource';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -64,13 +68,15 @@ describe('PostSQLDataSource — postReducer', () => {
 describe('PostSQLDataSource.getPosts — whitelist _sort', () => {
   it('lança UserInputError para coluna não permitida', () => {
     const { ds } = makeDs();
-    return expect(ds.getPosts({ _sort: 'body' })).rejects.toThrow(UserInputError);
+    return expect(ds.getPosts({ _sort: 'body' })).rejects.toThrow(
+      UserInputError,
+    );
   });
 
   it('lança UserInputError para tentativa de injeção', () => {
     const { ds } = makeDs();
     return expect(
-      ds.getPosts({ _sort: "title; DROP TABLE posts; --" }),
+      ds.getPosts({ _sort: 'title; DROP TABLE posts; --' }),
     ).rejects.toThrow(UserInputError);
   });
 
@@ -112,8 +118,7 @@ describe('PostSQLDataSource.createPost', () => {
 
   it('insere com os campos corretos e retorna o post criado', async () => {
     const qb = makeQb({
-      first: jest.fn()
-        .mockResolvedValueOnce(makeRow()), // getPost após insert
+      first: jest.fn().mockResolvedValueOnce(makeRow()), // getPost após insert
       insert: jest.fn().mockResolvedValue([42]),
       max: jest.fn().mockResolvedValue([{ val: 9 }]),
     });
@@ -121,7 +126,11 @@ describe('PostSQLDataSource.createPost', () => {
     const ds = new PostSQLDataSource(db);
     ds.initialize({ context: {}, cache: undefined });
 
-    const result = await ds.createPost({ title: 'Título', body: 'Corpo', userId: '10' });
+    const result = await ds.createPost({
+      title: 'Título',
+      body: 'Corpo',
+      userId: '10',
+    });
 
     const insertCall = qb.insert.mock.calls[0][0];
     expect(insertCall.title).toBe('Título');
@@ -148,33 +157,34 @@ describe('PostSQLDataSource.updatePost', () => {
     const { ds, qb } = makeDs();
     qb.first.mockResolvedValue(makeRow({ user_id: 10 }));
 
-    return expect(
-      ds.updatePost('1', { title: 'X' }, '99'),
-    ).rejects.toThrow(AuthenticationError);
+    return expect(ds.updatePost('1', { title: 'X' }, '99')).rejects.toThrow(
+      AuthenticationError,
+    );
   });
 
   it('lança ValidationError quando nenhum campo é passado', () => {
     const { ds, qb } = makeDs();
     qb.first.mockResolvedValue(makeRow({ user_id: 10 }));
 
-    return expect(
-      ds.updatePost('1', {}, '10'),
-    ).rejects.toThrow(ValidationError);
+    return expect(ds.updatePost('1', {}, '10')).rejects.toThrow(
+      ValidationError,
+    );
   });
 
   it('lança ValidationError quando title é string vazia', () => {
     const { ds, qb } = makeDs();
     qb.first.mockResolvedValue(makeRow({ user_id: 10 }));
 
-    return expect(
-      ds.updatePost('1', { title: '' }, '10'),
-    ).rejects.toThrow(ValidationError);
+    return expect(ds.updatePost('1', { title: '' }, '10')).rejects.toThrow(
+      ValidationError,
+    );
   });
 
   it('atualiza apenas os campos fornecidos', async () => {
     const qb = makeQb({
-      first: jest.fn()
-        .mockResolvedValueOnce(makeRow({ user_id: 10 }))   // getPost para verificação
+      first: jest
+        .fn()
+        .mockResolvedValueOnce(makeRow({ user_id: 10 })) // getPost para verificação
         .mockResolvedValueOnce(makeRow({ title: 'Novo' })), // getPost de retorno
       update: jest.fn().mockResolvedValue(1),
     });
@@ -198,14 +208,18 @@ describe('PostSQLDataSource.deletePost', () => {
     const { ds, qb } = makeDs();
     qb.first.mockResolvedValue(null);
 
-    return expect(ds.deletePost('999', 'user1')).rejects.toThrow(ValidationError);
+    return expect(ds.deletePost('999', 'user1')).rejects.toThrow(
+      ValidationError,
+    );
   });
 
   it('lança AuthenticationError quando loggedUserId não é o dono', () => {
     const { ds, qb } = makeDs();
     qb.first.mockResolvedValue(makeRow({ user_id: 10 }));
 
-    return expect(ds.deletePost('1', '99')).rejects.toThrow(AuthenticationError);
+    return expect(ds.deletePost('1', '99')).rejects.toThrow(
+      AuthenticationError,
+    );
   });
 
   it('retorna true quando deletado com sucesso', async () => {

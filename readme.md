@@ -96,6 +96,7 @@ http://localhost:4003/graphql
 | `NODE_ENV` | Yes | `development` or `production` |
 | `PORT` | No | Server port (default: `4003`) |
 | `JWT_SECRET` | Yes | Secret key — minimum 32 characters |
+| `ALLOWED_ORIGINS` | Yes | Comma-separated list of allowed CORS origins |
 | `DATABASE_CLIENT` | No | Knex client (default: `mysql2`) |
 | `DATABASE_HOST` | Yes | MySQL host |
 | `DATABASE_PORT` | Yes | MySQL port (default: `3306`) |
@@ -111,11 +112,11 @@ http://localhost:4003/graphql
 ### Queries
 
 ```graphql
-user(id: ID!): User!
-users(input: ApiFiltersInput): [User!]!   # requires authentication
+user(id: ID!): User!                        # requires authentication
+users(input: ApiFiltersInput): [User!]!     # requires authentication
 
 post(id: ID!): Post!
-posts(input: ApiFiltersInput): [Post!]!   # requires authentication
+posts(input: ApiFiltersInput): [Post!]!     # requires authentication
 ```
 
 ### Mutations
@@ -214,7 +215,7 @@ npm run security         # Run npm audit (high severity)
 npm test
 ```
 
-134 tests across 6 suites covering:
+109 tests across 9 suites covering:
 
 - `login-functions` — `checkIsLoggedIn`, `checkOwner`
 - `user-validators` — `validateUserName`, `validateUserPassword`
@@ -222,6 +223,9 @@ npm test
 - `post-resolvers` — all Query, Mutation, and field resolvers
 - `comment-resolvers` — Mutation, field resolver, subscription filter logic
 - `login-api` — full login/logout flow, rate limiting, cookie behavior
+- `user-datasource` — `UserSQLDataSource`: reducer, getUsers whitelist, createUser (bcrypt, index_ref, duplicata), updateUser, deleteUser
+- `post-datasource` — `PostSQLDataSource`: reducer, getPosts whitelist, createPost, updatePost (ownership), deletePost
+- `comment-datasource` — `CommentSQLDataSource`: reducer, getById, create (duplicate check, pubSub), batchLoaderCallback
 
 ## Database
 
@@ -236,10 +240,10 @@ Migrations in `src/knex/migrations/`:
 
 | File | Description |
 |---|---|
-| `20210529121742_create-comments-table.js` | Initial comments table |
-| `20260310120000_add-comments-indexes.js` | Indexes on post_id, user_id, created_at |
+| `20210529121742_create-comments-table.js` | Comments table (integer post_id / user_id) |
 | `20260310130000_create-users-table.js` | Users table with unique user_name |
 | `20260310130001_create-posts-table.js` | Posts table with FK → users (CASCADE DELETE) |
+| `20260310130002_add-fk-to-comments.js` | FK constraints on comments → posts and users (CASCADE DELETE) |
 
 ### Seeds
 
@@ -272,7 +276,7 @@ All credentials are read from `.env`. The database data persists at `~/.MySQLDBD
 - [ ] `NODE_ENV=production` is set
 - [ ] `JWT_SECRET` is a long, random string (≥ 32 chars)
 - [ ] `REDIS_URL` is configured (subscriptions require Redis in production)
-- [ ] `CORS_ORIGIN` is set to your frontend domain
+- [ ] `ALLOWED_ORIGINS` is set to your frontend domain(s)
 - [ ] Run `npm run migrate` before first start
 - [ ] Run `npm run build` before starting with `npm start`
 ```

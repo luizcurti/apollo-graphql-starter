@@ -7,7 +7,14 @@ import {
   validateUserPassword,
 } from './utils/user-repository';
 
-const ALLOWED_SORT_COLUMNS = new Set(['id', 'first_name', 'last_name', 'user_name', 'index_ref', 'created_at']);
+const ALLOWED_SORT_COLUMNS = new Set([
+  'id',
+  'first_name',
+  'last_name',
+  'user_name',
+  'index_ref',
+  'created_at',
+]);
 
 const userReducer = (row) => ({
   id: String(row.id),
