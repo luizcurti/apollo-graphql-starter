@@ -1,6 +1,8 @@
 import DataLoader from 'dataloader';
-import { AuthenticationError, ValidationError } from 'apollo-server-errors';
+import { AuthenticationError, UserInputError, ValidationError } from 'apollo-server-errors';
 import { SQLDatasource } from '../../datasources/sql/sql-datasource';
+
+const ALLOWED_SORT_COLUMNS = new Set(['id', 'title', 'user_id', 'index_ref', 'created_at']);
 
 const postReducer = (row) => ({
   id: String(row.id),
@@ -25,7 +27,12 @@ export class PostSQLDataSource extends SQLDatasource {
 
   async getPosts({ _sort, _order, _start, _limit } = {}) {
     let query = this.db(this.tableName);
-    if (_sort) query = query.orderBy(_sort, _order || 'asc');
+    if (_sort) {
+      if (!ALLOWED_SORT_COLUMNS.has(_sort)) {
+        throw new UserInputError(`Invalid sort column: ${_sort}`);
+      }
+      query = query.orderBy(_sort, _order || 'asc');
+    }
     if (_start) query = query.offset(Number(_start));
     if (_limit) query = query.limit(Number(_limit));
     const rows = await query;

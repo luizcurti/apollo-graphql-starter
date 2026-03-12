@@ -1,11 +1,10 @@
 # Query variables
 # {
 #  "title": "The dynamic title",
-#  "body": "The content",
-#  "userId": "602"
+#  "body": "The content"
 # }
-mutation CREATE_POST($title: String!, $body: String!, $userId: String!) {
-  createPost(data: { title: $title, body: $body, userId: $userId }) {
+mutation CREATE_POST($title: String!, $body: String!) {
+  createPost(data: { title: $title, body: $body }) {
     id
     title
     body

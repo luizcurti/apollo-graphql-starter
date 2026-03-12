@@ -18,7 +18,7 @@ export class CommentSQLDataSource extends SQLDatasource {
   }
 
   async getById(id) {
-    return this.db(this.tableName).where('id', '=', id);
+    return this.db(this.tableName).where('id', '=', id).first();
   }
 
   async getByPostId(post_id) {

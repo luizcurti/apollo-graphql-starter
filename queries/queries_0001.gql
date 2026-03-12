@@ -1,5 +1,5 @@
-query GET_USERS {
-  user {
+query GET_USER {
+  user(id: "602") {
     id
     userName
   }

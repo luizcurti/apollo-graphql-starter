@@ -11,7 +11,9 @@ const makeUserDb = () => {
 
 const verifyJwtToken = async (token) => {
   try {
-    const { userId } = jwt.verify(token, process.env.JWT_SECRET);
+    const { userId } = jwt.verify(token, process.env.JWT_SECRET, {
+      algorithms: ['HS256'],
+    });
 
     const userDb = makeUserDb();
     const foundUser = await userDb.getUser(userId);

@@ -1,5 +1,5 @@
 query GET_POST {
-  post {
+  post(id: "645") {
     id
     title
   }

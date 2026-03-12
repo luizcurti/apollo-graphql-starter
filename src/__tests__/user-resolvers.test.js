@@ -23,11 +23,19 @@ beforeEach(() => jest.clearAllMocks());
 // ─── Query ──────────────────────────────────────────────────────────────────
 
 describe('Query.user', () => {
-  it('retorna o usuário pelo id', async () => {
+  it('lança AuthenticationError quando não está autenticado', async () => {
+    await expect(
+      userResolvers.Query.user(null, { id: '1' }, makeCtx('')),
+    ).rejects.toThrow(AuthenticationError);
+
+    expect(mockUserDb.getUser).not.toHaveBeenCalled();
+  });
+
+  it('retorna o usuário pelo id quando autenticado', async () => {
     const user = { id: '1', userName: 'alice' };
     mockUserDb.getUser.mockResolvedValue(user);
 
-    const result = await userResolvers.Query.user(null, { id: '1' }, makeCtx());
+    const result = await userResolvers.Query.user(null, { id: '1' }, makeCtx('user1'));
 
     expect(mockUserDb.getUser).toHaveBeenCalledWith('1');
     expect(result).toEqual(user);
@@ -39,7 +47,7 @@ describe('Query.user', () => {
     const result = await userResolvers.Query.user(
       null,
       { id: '999' },
-      makeCtx(),
+      makeCtx('user1'),
     );
 
     expect(result).toBeNull();
@@ -47,14 +55,22 @@ describe('Query.user', () => {
 });
 
 describe('Query.users', () => {
-  it('retorna lista de usuários sem filtros', async () => {
+  it('lança AuthenticationError quando não está autenticado', async () => {
+    await expect(
+      userResolvers.Query.users(null, {}, makeCtx('')),
+    ).rejects.toThrow(AuthenticationError);
+
+    expect(mockUserDb.getUsers).not.toHaveBeenCalled();
+  });
+
+  it('retorna lista de usuários sem filtros quando autenticado', async () => {
     const users = [{ id: '1' }, { id: '2' }];
     mockUserDb.getUsers.mockResolvedValue(users);
 
     const result = await userResolvers.Query.users(
       null,
       { input: {} },
-      makeCtx(),
+      makeCtx('user1'),
     );
 
     expect(mockUserDb.getUsers).toHaveBeenCalledWith({});
@@ -65,7 +81,7 @@ describe('Query.users', () => {
     mockUserDb.getUsers.mockResolvedValue([]);
     const input = { _sort: 'createdAt', _order: 'DESC', _start: 0, _limit: 10 };
 
-    await userResolvers.Query.users(null, { input }, makeCtx());
+    await userResolvers.Query.users(null, { input }, makeCtx('user1'));
 
     expect(mockUserDb.getUsers).toHaveBeenCalledWith(input);
   });
@@ -73,7 +89,7 @@ describe('Query.users', () => {
   it('retorna lista vazia quando não há usuários', async () => {
     mockUserDb.getUsers.mockResolvedValue([]);
 
-    const result = await userResolvers.Query.users(null, {}, makeCtx());
+    const result = await userResolvers.Query.users(null, {}, makeCtx('user1'));
 
     expect(result).toEqual([]);
   });

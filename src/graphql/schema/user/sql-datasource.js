@@ -1,11 +1,13 @@
 import bcrypt from 'bcrypt';
 import DataLoader from 'dataloader';
-import { ValidationError } from 'apollo-server-errors';
+import { UserInputError, ValidationError } from 'apollo-server-errors';
 import { SQLDatasource } from '../../datasources/sql/sql-datasource';
 import {
   validateUserName,
   validateUserPassword,
 } from './utils/user-repository';
+
+const ALLOWED_SORT_COLUMNS = new Set(['id', 'first_name', 'last_name', 'user_name', 'index_ref', 'created_at']);
 
 const userReducer = (row) => ({
   id: String(row.id),
@@ -42,7 +44,12 @@ export class UserSQLDataSource extends SQLDatasource {
 
   async getUsers({ _sort, _order, _start, _limit } = {}) {
     let query = this.db(this.tableName);
-    if (_sort) query = query.orderBy(_sort, _order || 'asc');
+    if (_sort) {
+      if (!ALLOWED_SORT_COLUMNS.has(_sort)) {
+        throw new UserInputError(`Invalid sort column: ${_sort}`);
+      }
+      query = query.orderBy(_sort, _order || 'asc');
+    }
     if (_start) query = query.offset(Number(_start));
     if (_limit) query = query.limit(Number(_limit));
     const rows = await query;

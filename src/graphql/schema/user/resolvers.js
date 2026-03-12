@@ -1,11 +1,13 @@
-import { checkOwner } from '../login/utils/login-functions';
+import { checkIsLoggedIn, checkOwner } from '../login/utils/login-functions';
 
 // Query resolvers
-const users = async (_, { input }, { dataSources }) => {
+const users = async (_, { input }, { dataSources, loggedUserId }) => {
+  checkIsLoggedIn(loggedUserId);
   return dataSources.userDb.getUsers(input);
 };
 
-const user = async (_, { id }, { dataSources }) => {
+const user = async (_, { id }, { dataSources, loggedUserId }) => {
+  checkIsLoggedIn(loggedUserId);
   return dataSources.userDb.getUser(id);
 };
 

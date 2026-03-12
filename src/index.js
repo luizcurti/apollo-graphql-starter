@@ -36,7 +36,9 @@ const server = new ApolloServer({
   introspection: process.env.NODE_ENV !== 'production',
   validationRules: [depthLimit(7)],
   cors: {
-    origin: ['https://focused-bartik-8938e3.netlify.app'],
+    origin: process.env.ALLOWED_ORIGINS
+      ? process.env.ALLOWED_ORIGINS.split(',')
+      : [],
     credentials: true,
   },
   subscriptions: {
