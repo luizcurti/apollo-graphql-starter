@@ -39,8 +39,12 @@ const comments = async ({ id: post_id }, _, { dataSources }) => {
   return dataSources.commentDb.batchLoad(post_id);
 };
 
+const unixTimestamp = ({ createdAt }) => {
+  return Math.floor(new Date(createdAt).getTime() / 1000);
+};
+
 export const postResolvers = {
   Query: { post, posts },
   Mutation: { createPost, updatePost, deletePost },
-  Post: { user, comments },
+  Post: { user, comments, unixTimestamp },
 };

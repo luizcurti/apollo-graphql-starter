@@ -60,7 +60,7 @@ describe('LoginApi.login — senha incorreta', () => {
 });
 
 describe('LoginApi.login — credenciais válidas', () => {
-  it('retorna userId e define cookie httpOnly', async () => {
+  it('retorna userId e token, e define cookie httpOnly', async () => {
     const hash = await bcrypt.hash('SenhaValida1', 1);
     mockUserDb.getUserByUserName.mockResolvedValue({
       id: '42',
@@ -70,26 +70,13 @@ describe('LoginApi.login — credenciais válidas', () => {
 
     const result = await makeApi().login('alice_ok', 'SenhaValida1');
 
-    expect(result).toEqual({ userId: '42' });
+    expect(result).toEqual({ userId: '42', token: 'mock-jwt-token' });
     expect(mockUserDb.setToken).toHaveBeenCalledWith('42', 'mock-jwt-token');
     expect(mockRes.cookie).toHaveBeenCalledWith(
       'jwtToken',
       'mock-jwt-token',
       expect.objectContaining({ httpOnly: true, secure: true }),
     );
-  });
-
-  it('não retorna o token no corpo da resposta', async () => {
-    const hash = await bcrypt.hash('SenhaValida1', 1);
-    mockUserDb.getUserByUserName.mockResolvedValue({
-      id: '42',
-      passwordHash: hash,
-    });
-    mockUserDb.setToken.mockResolvedValue();
-
-    const result = await makeApi().login('alice_no_token', 'SenhaValida1');
-
-    expect(result).not.toHaveProperty('token');
   });
 });
 
@@ -136,6 +123,7 @@ describe('LoginApi.login — rate limiting', () => {
     // Login com senha correta reseta o contador
     await expect(makeApi().login(username, 'SenhaValida1')).resolves.toEqual({
       userId: '5',
+      token: 'mock-jwt-token',
     });
 
     // Agora pode tentar novamente normalmente (contador zerado)

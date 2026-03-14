@@ -14,6 +14,16 @@ const ALLOWED_SORT_COLUMNS = new Set([
   'created_at',
 ]);
 
+const SORT_COLUMN_MAP = {
+  id: 'id',
+  title: 'title',
+  userId: 'user_id',
+  indexRef: 'index_ref',
+  createdAt: 'created_at',
+};
+
+const resolveSort = (sort) => SORT_COLUMN_MAP[sort] ?? sort;
+
 const postReducer = (row) => ({
   id: String(row.id),
   title: row.title,
@@ -38,10 +48,11 @@ export class PostSQLDataSource extends SQLDatasource {
   async getPosts({ _sort, _order, _start, _limit } = {}) {
     let query = this.db(this.tableName);
     if (_sort) {
-      if (!ALLOWED_SORT_COLUMNS.has(_sort)) {
+      const col = resolveSort(_sort);
+      if (!ALLOWED_SORT_COLUMNS.has(col)) {
         throw new UserInputError(`Invalid sort column: ${_sort}`);
       }
-      query = query.orderBy(_sort, _order || 'asc');
+      query = query.orderBy(col, _order || 'asc');
     }
     if (_start) query = query.offset(Number(_start));
     if (_limit) query = query.limit(Number(_limit));

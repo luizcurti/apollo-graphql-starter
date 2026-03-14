@@ -73,7 +73,7 @@ export class LoginApi extends DataSource {
       sameSite: 'none',
     });
 
-    return { userId };
+    return { userId, token };
   }
 
   async logout(userName) {
