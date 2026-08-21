@@ -1,18 +1,18 @@
-import { ApolloServer } from 'apollo-server';
+import http from 'http';
+import express, { json } from 'express';
+import cors from 'cors';
+import cookieParser from 'cookie-parser';
+import { ApolloServer } from '@apollo/server';
+import { expressMiddleware } from '@as-integrations/express5';
+import { ApolloServerPluginDrainHttpServer } from '@apollo/server/plugin/drainHttpServer';
+import { makeExecutableSchema } from '@graphql-tools/schema';
+import { WebSocketServer } from 'ws';
+import { useServer } from 'graphql-ws/use/ws';
 import depthLimit from 'graphql-depth-limit';
 
-import { knex } from './knex/';
 import { logger } from './utils/logger';
-
 import { context } from './graphql/context';
-
-import { UserSQLDataSource } from './graphql/schema/user/sql-datasource';
-import { PostSQLDataSource } from './graphql/schema/post/sql-datasource';
-
 import { resolvers, typeDefs } from './graphql/schema';
-import { LoginApi } from './graphql/schema/login/datasources';
-
-import { CommentSQLDataSource } from './graphql/schema/comment/datasources';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET || JWT_SECRET.length < 32) {
@@ -22,37 +22,62 @@ if (!JWT_SECRET || JWT_SECRET.length < 32) {
   process.exit(1);
 }
 
+const schema = makeExecutableSchema({ typeDefs, resolvers });
+
+const app = express();
+const httpServer = http.createServer(app);
+
+const wsServer = new WebSocketServer({ server: httpServer, path: '/' });
+
+const serverCleanup = useServer(
+  {
+    schema,
+    context: async (ctx) =>
+      context({ req: ctx.extra.request, connection: true }),
+  },
+  wsServer,
+);
+
 const server = new ApolloServer({
-  typeDefs,
-  resolvers,
-  context,
-  dataSources: () => ({
-    userDb: new UserSQLDataSource(knex),
-    postDb: new PostSQLDataSource(knex),
-    loginApi: new LoginApi(),
-    commentDb: new CommentSQLDataSource(knex),
-  }),
-  uploads: false,
+  schema,
   introspection: process.env.NODE_ENV !== 'production',
   validationRules: [depthLimit(7)],
-  cors: {
-    origin: process.env.ALLOWED_ORIGINS
-      ? process.env.ALLOWED_ORIGINS.split(',')
-      : [],
-    credentials: true,
-  },
-  subscriptions: {
-    onConnect: (connectionParams, ws, _context) => {
-      return {
-        req: ws.upgradeReq,
-      };
+  plugins: [
+    ApolloServerPluginDrainHttpServer({ httpServer }),
+    {
+      async serverWillStart() {
+        return {
+          async drainServer() {
+            await serverCleanup.dispose();
+          },
+        };
+      },
     },
-    path: '/',
-    keepAlive: 5000,
-  },
+  ],
 });
 
-const port = process.env.PORT || 4003;
-server.listen(port).then(({ url }) => {
-  logger.info(`Server listening on ${url}`);
-});
+const start = async () => {
+  await server.start();
+
+  app.use(
+    '/',
+    cors({
+      origin: process.env.ALLOWED_ORIGINS
+        ? process.env.ALLOWED_ORIGINS.split(',')
+        : [],
+      credentials: true,
+    }),
+    cookieParser(),
+    json(),
+    expressMiddleware(server, {
+      context: async ({ req, res }) => context({ req, res }),
+    }),
+  );
+
+  const port = process.env.PORT || 4003;
+  httpServer.listen(port, () => {
+    logger.info(`Server listening on http://localhost:${port}/`);
+  });
+};
+
+start();

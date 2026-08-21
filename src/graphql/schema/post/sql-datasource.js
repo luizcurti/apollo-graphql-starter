@@ -3,7 +3,7 @@ import {
   AuthenticationError,
   UserInputError,
   ValidationError,
-} from 'apollo-server-errors';
+} from '../../errors';
 import { SQLDatasource } from '../../datasources/sql/sql-datasource';
 
 const ALLOWED_SORT_COLUMNS = new Set([

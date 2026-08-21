@@ -1,4 +1,4 @@
-import { withFilter } from 'apollo-server';
+import { withFilter } from 'graphql-subscriptions';
 import { checkIsLoggedIn } from '../login/utils/login-functions';
 import { pubSub, CREATED_COMMENT_TRIGGER } from '../../pubsub';
 
@@ -23,7 +23,7 @@ const user = async ({ user_id }, _, { dataSources }) => {
 const createdComment = {
   subscribe: withFilter(
     () => {
-      return pubSub.asyncIterator(CREATED_COMMENT_TRIGGER);
+      return pubSub.asyncIterableIterator(CREATED_COMMENT_TRIGGER);
     },
     (payload, _, context) => {
       const hasPostOwner = payload.postOwner !== null;

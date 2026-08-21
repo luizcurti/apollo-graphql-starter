@@ -1,4 +1,4 @@
-import { gql } from 'apollo-server-core';
+import gql from 'graphql-tag';
 
 import { apiFiltersResolvers } from './api-filters/resolvers';
 import { apiFiltersTypeDefs } from './api-filters/typedefs';

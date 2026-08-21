@@ -1,4 +1,4 @@
-import { AuthenticationError } from 'apollo-server-errors';
+import { AuthenticationError } from '../../../errors';
 
 export const checkIsLoggedIn = (loggedUserId) => {
   if (!loggedUserId) {

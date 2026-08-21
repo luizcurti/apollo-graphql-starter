@@ -1,5 +1,5 @@
 import bcrypt from 'bcrypt';
-import { UserInputError, ValidationError } from 'apollo-server-errors';
+import { UserInputError, ValidationError } from '../graphql/errors';
 import { UserSQLDataSource } from '../graphql/schema/user/sql-datasource';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

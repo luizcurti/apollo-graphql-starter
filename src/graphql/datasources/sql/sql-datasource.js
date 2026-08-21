@@ -1,17 +1,14 @@
-import { DataSource } from 'apollo-datasource';
-import { InMemoryLRUCache } from 'apollo-server-caching';
 import DataLoader from 'dataloader';
 
-export class SQLDatasource extends DataSource {
+export class SQLDatasource {
   constructor(dbConnection) {
-    super();
     this.db = dbConnection;
     this._loader = new DataLoader(async (ids) => this.batchLoaderCallback(ids));
   }
 
-  initialize({ context, cache }) {
+  initialize({ context, cache } = {}) {
     this.context = context;
-    this.cache = cache || new InMemoryLRUCache();
+    this.cache = cache;
   }
 
   async batchLoad(id) {

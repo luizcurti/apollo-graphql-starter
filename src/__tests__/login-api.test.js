@@ -1,7 +1,7 @@
 import bcrypt from 'bcrypt';
 import { LoginApi } from '../graphql/schema/login/datasources';
 import { loginResolvers } from '../graphql/schema/login/resolvers';
-import { AuthenticationError, UserInputError } from 'apollo-server-errors';
+import { AuthenticationError, UserInputError } from '../graphql/errors';
 
 jest.mock('jsonwebtoken', () => ({
   sign: jest.fn(() => 'mock-jwt-token'),

@@ -1,6 +1,6 @@
 import bcrypt from 'bcrypt';
 import DataLoader from 'dataloader';
-import { UserInputError, ValidationError } from 'apollo-server-errors';
+import { UserInputError, ValidationError } from '../../errors';
 import { SQLDatasource } from '../../datasources/sql/sql-datasource';
 import {
   validateUserName,
