@@ -35,7 +35,7 @@ const authorizeUserWithBearerToken = async (req) => {
   try {
     const [, token] = authorization.split(' ');
     return await verifyJwtToken(token);
-  } catch (e) {
+  } catch (_e) {
     return '';
   }
 };
