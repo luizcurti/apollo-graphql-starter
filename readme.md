@@ -6,12 +6,12 @@ A production-ready GraphQL API built with Node.js, Apollo Server, Knex, and MySQ
 
 | Layer | Technology |
 |---|---|
-| Runtime | Node.js |
-| GraphQL Server | Apollo Server 2 |
-| Query Language | GraphQL 15 |
-| Database ORM | Knex 2 + MySQL2 |
+| Runtime | Node.js 22+ |
+| GraphQL Server | @apollo/server 5 (Express 5 + graphql-ws) |
+| Query Language | GraphQL 16 |
+| Database ORM | Knex 3 + MySQL2 |
 | Authentication | JWT (jsonwebtoken) + bcrypt |
-| Subscriptions | Redis PubSub (ioredis) · in-memory fallback in dev |
+| Subscriptions | graphql-ws over Redis PubSub (ioredis) · in-memory fallback in dev |
 | Logging | Pino (pino-pretty in dev, JSON in prod) |
 | Transpiler | Sucrase |
 | Testing | Jest + @sucrase/jest-plugin |
@@ -42,7 +42,7 @@ src/
 
 ## Prerequisites
 
-- [Node.js](https://nodejs.org/) v18+
+- [Node.js](https://nodejs.org/) v22+
 - [Docker](https://www.docker.com/) (for the MySQL container)
 - Redis (required in production for subscriptions)
 
