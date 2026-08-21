@@ -9,7 +9,7 @@ module.exports = [
   js.configs.recommended,
   prettierRecommended,
   {
-    files: ['src/**/*.js'],
+    files: ['src/**/*.js', 'e2e-test.js'],
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',
