@@ -12,6 +12,7 @@ run_query() {
   local query="$2"
   local vars="${3:-null}"
   local headers="${4:-}"
+  local expect_error="${5:-false}"
 
   local body
   body=$(printf '{"query":%s,"variables":%s}' "$(echo "$query" | jq -Rs .)" "$vars")
@@ -30,14 +31,16 @@ run_query() {
 
   local errors
   errors=$(echo "$response" | jq -r '.errors // empty' 2>/dev/null)
+  local has_errors="false"
+  [[ -n "$errors" ]] && has_errors="true"
 
-  if [[ -z "$errors" ]]; then
-    echo "  ✅ PASS: $name"
-    ((PASS++))
+  if [[ "$has_errors" == "$expect_error" ]]; then
+    echo "  ✅ PASS: $name" >&2
+    PASS=$((PASS + 1))
   else
-    echo "  ❌ FAIL: $name"
-    echo "     Response: $(echo "$response" | jq -c '.errors[0].message // .errors' 2>/dev/null)"
-    ((FAIL++))
+    echo "  ❌ FAIL: $name" >&2
+    echo "     Response: $(echo "$response" | jq -c '.errors[0].message // .errors' 2>/dev/null)" >&2
+    FAIL=$((FAIL + 1))
   fi
 
   echo "$response"
@@ -46,6 +49,23 @@ run_query() {
 echo "========================================="
 echo "  GraphQL E2E Tests"
 echo "========================================="
+
+# ──────────────────────────────────────────────
+# Cleanup: remove o usuário e2e de uma run anterior que não tenha
+# chegado até o deleteUser final (evita falha de "already taken").
+# ──────────────────────────────────────────────
+PRELOGIN=$(curl -s -X POST "$BASE_URL" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"mutation { login(data: { userName: \"e2e.test.user\", password: \"Senha123\" }) { userId token } }"}')
+OLD_E2E_ID=$(echo "$PRELOGIN" | jq -r '.data.login.userId // empty')
+OLD_E2E_TOKEN=$(echo "$PRELOGIN" | jq -r '.data.login.token // empty')
+if [[ -n "$OLD_E2E_ID" && -n "$OLD_E2E_TOKEN" ]]; then
+  curl -s -X POST "$BASE_URL" \
+    -H "Content-Type: application/json" \
+    -H "authorization: Bearer $OLD_E2E_TOKEN" \
+    -d "{\"query\":\"mutation { deleteUser(userId: \\\"$OLD_E2E_ID\\\") }\"}" > /dev/null
+  echo "  🧹 Cleanup: user e2e.test.user (id=$OLD_E2E_ID) removido de run anterior"
+fi
 
 # ──────────────────────────────────────────────
 echo ""
@@ -93,21 +113,13 @@ echo "     => token: ${TOKEN:0:40}..."
 
 echo ""
 echo "--- login (credenciais inválidas) ---"
-RESP_BAD=$(run_query "login_invalid" '
+run_query "login_invalid" '
   mutation {
     login(data: { userName: "naoexiste", password: "senhaerrada" }) {
       token
     }
   }
-')
-# Esperamos erro aqui — inverte a lógica
-if echo "$RESP_BAD" | jq -e '.errors' > /dev/null 2>&1; then
-  echo "  ✅ PASS: login_invalid (retornou erro esperado)"
-  ((PASS++))
-else
-  echo "  ❌ FAIL: login_invalid deveria ter retornado erro"
-  ((FAIL++))
-fi
+' "null" "" "true" > /dev/null
 
 # ──────────────────────────────────────────────
 echo ""
@@ -224,31 +236,18 @@ run_query "getPost_fragment" '
 ' "null" "$AUTH_HEADER" > /dev/null
 
 echo ""
-echo "--- getPost union (não encontrado - postId=8600) ---"
+echo "--- getPost não encontrado (postId=8600) — post é nullable, sem erro esperado ---"
 run_query "getPost_not_found" '
   query {
-    post(id: "8600") {
-      __typename
-      ... on Post { id title }
-      ... on PostError {
-        statusCode
-        message
-        ... on PostNotFoundError { postId }
-        ... on PostTimeoutError { timeout }
-      }
-    }
+    post(id: "8600") { id title }
   }
 ' "null" "$AUTH_HEADER" > /dev/null
 
 echo ""
-echo "--- getPost union (encontrado - postId=860) ---"
-run_query "getPost_union_found" '
+echo "--- getPost encontrado (postId=860) ---"
+run_query "getPost_found" '
   query {
-    post(id: "860") {
-      __typename
-      ... on Post { id title }
-      ... on PostNotFoundError { statusCode message }
-    }
+    post(id: "860") { id title }
   }
 ' "null" "$AUTH_HEADER" > /dev/null
 
@@ -352,14 +351,6 @@ else
   echo "  ⚠️  SKIP: updateUser"
 fi
 
-echo ""
-echo "--- logout ---"
-run_query "logout" '
-  mutation {
-    logout(userName: "elisa.pereira")
-  }
-' "null" > /dev/null
-
 # ──────────────────────────────────────────────
 echo ""
 echo "[ MUTATIONS ] — deletePost"
@@ -391,6 +382,18 @@ if [[ -n "$E2E_USER_ID" && -n "$E2E_TOKEN" ]]; then
 else
   echo "  ⚠️  SKIP: deleteUser"
 fi
+
+# ──────────────────────────────────────────────
+# logout roda por último — invalida o token da Elisa, então qualquer
+# teste que ainda dependa de $AUTH_HEADER precisa vir antes deste.
+# ──────────────────────────────────────────────
+echo ""
+echo "--- logout ---"
+run_query "logout" '
+  mutation {
+    logout(userName: "elisa.pereira")
+  }
+' "null" "$AUTH_HEADER" > /dev/null
 
 # ──────────────────────────────────────────────
 echo ""
