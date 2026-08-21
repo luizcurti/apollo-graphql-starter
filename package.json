@@ -2,13 +2,15 @@
   "name": "graphql-node",
   "version": "1.0.0",
   "description": "",
-  "main": "src/index.js",
+  "main": "dist/index.js",
   "scripts": {
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:ci": "npm run lint:check && npm run test && npm run build",
-    "dev": "nodemon -e 'js' -r dotenv/config -r sucrase/register src/index.js",
-    "build": "rimraf ./dist && sucrase ./src -d ./dist --transforms imports",
+    "test:e2e": "node -r dotenv/config -r sucrase/register e2e-test.ts",
+    "test:ci": "npm run lint:check && npm run typecheck && npm run test && npm run build",
+    "typecheck": "tsc --noEmit",
+    "dev": "nodemon -e 'ts' -r dotenv/config -r sucrase/register src/index.ts",
+    "build": "rimraf ./dist && sucrase ./src -d ./dist --transforms imports,typescript",
     "start": "node -r dotenv/config dist/index.js",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
@@ -16,9 +18,9 @@
     "lint:ci": "eslint src/ --max-warnings=10",
     "format": "prettier --write src/",
     "format:check": "prettier --check src/",
-    "migrate": "knex --knexfile src/knex/knexfile.js migrate:latest",
-    "migrate:rollback": "knex --knexfile src/knex/knexfile.js migrate:rollback",
-    "seed": "knex --knexfile src/knex/knexfile.js seed:run",
+    "migrate": "node -r sucrase/register node_modules/.bin/knex --knexfile src/knex/knexfile.ts migrate:latest",
+    "migrate:rollback": "node -r sucrase/register node_modules/.bin/knex --knexfile src/knex/knexfile.ts migrate:rollback",
+    "seed": "node -r sucrase/register node_modules/.bin/knex --knexfile src/knex/knexfile.ts seed:run",
     "db:setup": "npm run migrate && npm run seed",
     "audit:high": "npm audit --audit-level=high",
     "audit:ci": "npm audit --audit-level=high || echo 'Security vulnerabilities found in legacy dependencies'",
@@ -58,6 +60,15 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@sucrase/jest-plugin": "^3.0.0",
+    "@types/bcrypt": "^6.0.0",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/graphql-depth-limit": "^1.1.6",
+    "@types/jest": "^30.0.0",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^26.2.0",
+    "@types/ws": "^8.18.1",
     "eslint": "^10.1.8",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.6",
@@ -65,11 +76,13 @@
     "jest": "^30.4.2",
     "nodemon": "^3.1.14",
     "prettier": "^3.9.6",
-    "sucrase": "^3.35.1"
+    "sucrase": "^3.35.1",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.67.0"
   },
   "jest": {
     "transform": {
-      "^.+\\.js$": "@sucrase/jest-plugin"
+      "^.+\\.[jt]sx?$": "@sucrase/jest-plugin"
     }
   }
 }

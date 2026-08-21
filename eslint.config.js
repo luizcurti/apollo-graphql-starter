@@ -1,15 +1,17 @@
 const js = require('@eslint/js');
+const tseslint = require('typescript-eslint');
 const globals = require('globals');
 const prettierRecommended = require('eslint-plugin-prettier/recommended');
 
-module.exports = [
+module.exports = tseslint.config(
   {
     ignores: ['node_modules/', 'dist/', 'build/', 'coverage/'],
   },
   js.configs.recommended,
+  ...tseslint.configs.recommended,
   prettierRecommended,
   {
-    files: ['src/**/*.js', 'e2e-test.js'],
+    files: ['src/**/*.ts', 'e2e-test.ts'],
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',
@@ -18,7 +20,8 @@ module.exports = [
       },
     },
     rules: {
-      'no-unused-vars': [
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': [
         'error',
         {
           argsIgnorePattern: '^_',
@@ -26,6 +29,7 @@ module.exports = [
           caughtErrorsIgnorePattern: '^_',
         },
       ],
+      '@typescript-eslint/no-explicit-any': 'warn',
       'no-console': 'warn',
       'prefer-const': 'error',
       'no-var': 'error',
@@ -41,11 +45,14 @@ module.exports = [
     },
   },
   {
-    files: ['src/__tests__/**/*.js'],
+    files: ['src/__tests__/**/*.ts'],
     languageOptions: {
       globals: {
         ...globals.jest,
       },
     },
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+    },
   },
-];
+);

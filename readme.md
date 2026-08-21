@@ -7,25 +7,28 @@ A production-ready GraphQL API built with Node.js, Apollo Server, Knex, and MySQ
 | Layer | Technology |
 |---|---|
 | Runtime | Node.js 22+ |
+| Language | TypeScript (strict mode) |
 | GraphQL Server | @apollo/server 5 (Express 5 + graphql-ws) |
 | Query Language | GraphQL 16 |
 | Database ORM | Knex 3 + MySQL2 |
 | Authentication | JWT (jsonwebtoken) + bcrypt |
 | Subscriptions | graphql-ws over Redis PubSub (ioredis) · in-memory fallback in dev |
 | Logging | Pino (pino-pretty in dev, JSON in prod) |
-| Transpiler | Sucrase |
+| Transpiler | Sucrase (types are stripped, not checked — see `npm run typecheck`) |
 | Testing | Jest + @sucrase/jest-plugin |
 
 ## Project Structure
 
 ```
 src/
-├── index.js                        # Apollo Server entry point
+├── index.ts                        # Apollo Server entry point
 ├── utils/
-│   └── logger.js                   # Pino structured logger
+│   └── logger.ts                   # Pino structured logger
 ├── graphql/
-│   ├── context/index.js            # JWT verification, request context
-│   ├── pubsub.js                   # Redis / in-memory PubSub
+│   ├── context/
+│   │   ├── index.ts                # JWT verification, request context
+│   │   └── types.ts                # Context / DataSources types
+│   ├── pubsub.ts                    # Redis / in-memory PubSub
 │   ├── datasources/sql/            # Base SQLDatasource class
 │   └── schema/
 │       ├── user/                   # User CRUD + DataLoader
@@ -34,8 +37,8 @@ src/
 │       ├── login/                  # Login / Logout + rate limiting
 │       └── api-filters/            # Pagination/sorting input types
 └── knex/
-    ├── index.js                    # Knex connection factory
-    ├── knexfile.js                 # DB config per environment
+    ├── index.ts                    # Knex connection factory
+    ├── knexfile.ts                 # DB config per environment
     ├── migrations/                 # Schema migrations
     └── seeds/                      # Development seed data
 ```
@@ -194,7 +197,9 @@ npm run build            # Compile src/ to dist/ via Sucrase
 
 npm test                 # Run all tests
 npm run test:watch       # Run tests in watch mode
-npm run test:ci          # lint:check + test + build
+npm run test:e2e         # Run e2e-test.ts against a running server
+npm run test:ci          # lint:check + typecheck + test + build
+npm run typecheck        # Type-check the project with tsc (no emit)
 
 npm run migrate          # Run pending database migrations
 npm run migrate:rollback # Roll back the last migration batch
@@ -215,7 +220,7 @@ npm run security         # Run npm audit (high severity)
 npm test
 ```
 
-109 tests across 9 suites covering:
+108 tests across 9 suites covering:
 
 - `login-functions` — `checkIsLoggedIn`, `checkOwner`
 - `user-validators` — `validateUserName`, `validateUserPassword`
@@ -240,10 +245,10 @@ Migrations in `src/knex/migrations/`:
 
 | File | Description |
 |---|---|
-| `20210529121742_create-comments-table.js` | Comments table (integer post_id / user_id) |
-| `20260310130000_create-users-table.js` | Users table with unique user_name |
-| `20260310130001_create-posts-table.js` | Posts table with FK → users (CASCADE DELETE) |
-| `20260310130002_add-fk-to-comments.js` | FK constraints on comments → posts and users (CASCADE DELETE) |
+| `20210529121742_create-comments-table.ts` | Comments table (integer post_id / user_id) |
+| `20260310130000_create-users-table.ts` | Users table with unique user_name |
+| `20260310130001_create-posts-table.ts` | Posts table with FK → users (CASCADE DELETE) |
+| `20260310130002_add-fk-to-comments.ts` | FK constraints on comments → posts and users (CASCADE DELETE) |
 
 ### Seeds
 
@@ -255,9 +260,9 @@ Seed data (`src/knex/seeds/`):
 
 | File | Records |
 |---|---|
-| `01_users.js` | 20 users — all with password `Senha123` |
-| `02_posts.js` | 24 posts |
-| `03_comments.js` | 24 comments |
+| `01_users.ts` | 20 users — all with password `Senha123` |
+| `02_posts.ts` | 24 posts |
+| `03_comments.ts` | 24 comments |
 
 Seeds run in order and respect foreign key constraints.
 
@@ -268,17 +273,3 @@ Start a MySQL 8.0 container:
 ```bash
 docker compose up -d
 ```
-
-All credentials are read from `.env`. The database data persists at `~/.MySQLDBData/mysqlonly/graphql_mysql`.
-
-## Production Checklist
-
-- [ ] `NODE_ENV=production` is set
-- [ ] `JWT_SECRET` is a long, random string (≥ 32 chars)
-- [ ] `REDIS_URL` is configured (subscriptions require Redis in production)
-- [ ] `ALLOWED_ORIGINS` is set to your frontend domain(s)
-- [ ] Run `npm run migrate` before first start
-- [ ] Run `npm run build` before starting with `npm start`
-```
-
-**Note:** The CI pipeline allows known vulnerabilities in legacy dependencies to avoid blocking development while maintaining visibility.
