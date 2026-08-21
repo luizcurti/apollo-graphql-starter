@@ -33,8 +33,8 @@ beforeEach(() => jest.clearAllMocks());
 // ─── Query ──────────────────────────────────────────────────────────────────
 
 describe('Query.post', () => {
-  it('retorna o post pelo id', async () => {
-    const post = { id: '1', title: 'Título', body: 'Corpo' };
+  it('returns the post by id', async () => {
+    const post = { id: '1', title: 'Title', body: 'Body' };
     mockPostDb.getPost.mockResolvedValue(post);
 
     const result = await postResolvers.Query.post(null, { id: '1' }, makeCtx());
@@ -43,7 +43,7 @@ describe('Query.post', () => {
     expect(result).toEqual(post);
   });
 
-  it('retorna null quando post não existe', async () => {
+  it('returns null when the post does not exist', async () => {
     mockPostDb.getPost.mockResolvedValue(null);
 
     const result = await postResolvers.Query.post(
@@ -55,7 +55,7 @@ describe('Query.post', () => {
     expect(result).toBeNull();
   });
 
-  it('pode ser acessado sem autenticação', async () => {
+  it('can be accessed without authentication', async () => {
     mockPostDb.getPost.mockResolvedValue({ id: '1' });
 
     await expect(
@@ -65,7 +65,7 @@ describe('Query.post', () => {
 });
 
 describe('Query.posts', () => {
-  it('lança AuthenticationError quando não está autenticado', async () => {
+  it('throws AuthenticationError when not authenticated', async () => {
     await expect(
       postResolvers.Query.posts(null, {}, makeCtx('')),
     ).rejects.toThrow(AuthenticationError);
@@ -73,7 +73,7 @@ describe('Query.posts', () => {
     expect(mockPostDb.getPosts).not.toHaveBeenCalled();
   });
 
-  it('retorna lista de posts quando autenticado', async () => {
+  it('returns the list of posts when authenticated', async () => {
     const posts = [{ id: '1' }, { id: '2' }, { id: '3' }];
     mockPostDb.getPosts.mockResolvedValue(posts);
 
@@ -87,7 +87,7 @@ describe('Query.posts', () => {
     expect(result).toHaveLength(3);
   });
 
-  it('passa filtros de paginação para o datasource', async () => {
+  it('passes pagination filters through to the datasource', async () => {
     mockPostDb.getPosts.mockResolvedValue([]);
     const input = {
       _sort: 'createdAt',
@@ -105,7 +105,7 @@ describe('Query.posts', () => {
 // ─── Mutations ───────────────────────────────────────────────────────────────
 
 describe('Mutation.createPost', () => {
-  it('lança AuthenticationError quando não está autenticado', async () => {
+  it('throws AuthenticationError when not authenticated', async () => {
     await expect(
       postResolvers.Mutation.createPost(
         null,
@@ -117,7 +117,7 @@ describe('Mutation.createPost', () => {
     expect(mockPostDb.createPost).not.toHaveBeenCalled();
   });
 
-  it('cria o post injetando userId do contexto', async () => {
+  it('creates the post, injecting the userId from the context', async () => {
     const post = { id: '1', title: 'T', body: 'B', userId: 'user1' };
     mockPostDb.createPost.mockResolvedValue(post);
 
@@ -135,7 +135,7 @@ describe('Mutation.createPost', () => {
     expect(result).toEqual(post);
   });
 
-  it('não permite passar userId externo — usa sempre o do contexto', async () => {
+  it('does not allow passing an external userId — always uses the one from the context', async () => {
     mockPostDb.createPost.mockResolvedValue({ id: '1', userId: 'user1' });
 
     await postResolvers.Mutation.createPost(
@@ -150,7 +150,7 @@ describe('Mutation.createPost', () => {
 });
 
 describe('Mutation.updatePost', () => {
-  it('lança AuthenticationError quando não está autenticado', async () => {
+  it('throws AuthenticationError when not authenticated', async () => {
     await expect(
       postResolvers.Mutation.updatePost(
         null,
@@ -162,25 +162,25 @@ describe('Mutation.updatePost', () => {
     expect(mockPostDb.updatePost).not.toHaveBeenCalled();
   });
 
-  it('chama datasource com postId, data e loggedUserId quando autenticado', async () => {
-    const updated = { id: '1', title: 'Atualizado' };
+  it('calls the datasource with postId, data, and loggedUserId when authenticated', async () => {
+    const updated = { id: '1', title: 'Updated' };
     mockPostDb.updatePost.mockResolvedValue(updated);
 
     const result = await postResolvers.Mutation.updatePost(
       null,
-      { postId: '1', data: { title: 'Atualizado' } },
+      { postId: '1', data: { title: 'Updated' } },
       makeCtx('user1'),
     );
 
     expect(mockPostDb.updatePost).toHaveBeenCalledWith(
       '1',
-      { title: 'Atualizado' },
+      { title: 'Updated' },
       'user1',
     );
     expect(result).toEqual(updated);
   });
 
-  it('repassa AuthenticationError se datasource rejeitar por não ser dono', async () => {
+  it('forwards AuthenticationError if the datasource rejects due to ownership', async () => {
     mockPostDb.updatePost.mockRejectedValue(
       new AuthenticationError('You cannot update this post.'),
     );
@@ -196,7 +196,7 @@ describe('Mutation.updatePost', () => {
 });
 
 describe('Mutation.deletePost', () => {
-  it('lança AuthenticationError quando não está autenticado', async () => {
+  it('throws AuthenticationError when not authenticated', async () => {
     await expect(
       postResolvers.Mutation.deletePost(null, { postId: '1' }, makeCtx('')),
     ).rejects.toThrow(AuthenticationError);
@@ -204,7 +204,7 @@ describe('Mutation.deletePost', () => {
     expect(mockPostDb.deletePost).not.toHaveBeenCalled();
   });
 
-  it('chama datasource com postId e loggedUserId quando autenticado', async () => {
+  it('calls the datasource with postId and loggedUserId when authenticated', async () => {
     mockPostDb.deletePost.mockResolvedValue(true);
 
     const result = await postResolvers.Mutation.deletePost(
@@ -217,7 +217,7 @@ describe('Mutation.deletePost', () => {
     expect(result).toBe(true);
   });
 
-  it('repassa AuthenticationError se datasource rejeitar por não ser dono', async () => {
+  it('forwards AuthenticationError if the datasource rejects due to ownership', async () => {
     mockPostDb.deletePost.mockRejectedValue(
       new AuthenticationError('You cannot delete this post.'),
     );
@@ -235,7 +235,7 @@ describe('Mutation.deletePost', () => {
 // ─── Field Resolvers ─────────────────────────────────────────────────────────
 
 describe('Post.user (field resolver)', () => {
-  it('carrega o autor do post via DataLoader', async () => {
+  it("loads the post's author via DataLoader", async () => {
     const user = { id: 'user1', userName: 'alice' };
     mockUserDb.batchLoadById.mockResolvedValue(user);
 
@@ -251,7 +251,7 @@ describe('Post.user (field resolver)', () => {
 });
 
 describe('Post.comments (field resolver)', () => {
-  it('carrega os comentários do post via DataLoader', async () => {
+  it("loads the post's comments via DataLoader", async () => {
     const comments = [{ id: '10' }, { id: '11' }];
     mockCommentDb.batchLoad.mockResolvedValue(comments);
 
@@ -265,7 +265,7 @@ describe('Post.comments (field resolver)', () => {
     expect(result).toEqual(comments);
   });
 
-  it('retorna array vazio quando post não tem comentários', async () => {
+  it('returns an empty array when the post has no comments', async () => {
     mockCommentDb.batchLoad.mockResolvedValue([]);
 
     const result = await postResolvers.Post.comments(
@@ -275,5 +275,15 @@ describe('Post.comments (field resolver)', () => {
     );
 
     expect(result).toEqual([]);
+  });
+});
+
+describe('Post.unixTimestamp (field resolver)', () => {
+  it('converts createdAt (ISO string) to a unix timestamp in seconds', () => {
+    const result = postResolvers.Post.unixTimestamp({
+      createdAt: '2024-01-01T00:00:00.000Z',
+    });
+
+    expect(result).toBe(1704067200);
   });
 });

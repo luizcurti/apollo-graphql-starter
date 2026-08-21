@@ -2,6 +2,8 @@
 
 A production-ready GraphQL API built with Node.js, Apollo Server, Knex, and MySQL. Features JWT authentication via httpOnly cookies, DataLoader batching, Redis PubSub for subscriptions, structured logging, and query depth/complexity protection.
 
+📊 **[Architecture diagrams and flow docs →](./docs/README.md)**
+
 ## Stack
 
 | Layer | Technology |
@@ -197,6 +199,7 @@ npm run build            # Compile src/ to dist/ via Sucrase
 
 npm test                 # Run all tests
 npm run test:watch       # Run tests in watch mode
+npm run test:integration # Run integration tests against a real MySQL (needs db:setup first)
 npm run test:e2e         # Run e2e-test.ts against a running server
 npm run test:ci          # lint:check + typecheck + test + build
 npm run typecheck        # Type-check the project with tsc (no emit)
@@ -216,21 +219,42 @@ npm run security         # Run npm audit (high severity)
 
 ## Testing
 
+Three independent layers, each covering the API from a different angle:
+
 ```bash
-npm test
+npm test                 # unit tests — mocked, no external services needed
+npm run test:integration  # real MySQL — schema, constraints, cascades
+npm run test:e2e          # black-box HTTP run against a live server
 ```
 
-108 tests across 9 suites covering:
+### Unit tests (`npm test`)
+
+162 tests across 15 suites, with **100% statement/branch/function/line
+coverage** on every business-logic module (resolvers, datasources, auth
+context, pubsub, validators — see `npm test -- --coverage`). Entry-point
+bootstrap (`src/index.ts`) and migrations/seeds are intentionally excluded
+from that figure — they're covered by the integration suite instead, which
+exercises them against a real database rather than mocks.
 
 - `login-functions` — `checkIsLoggedIn`, `checkOwner`
 - `user-validators` — `validateUserName`, `validateUserPassword`
-- `user-resolvers` — all Query, Mutation, and field resolvers
-- `post-resolvers` — all Query, Mutation, and field resolvers
-- `comment-resolvers` — Mutation, field resolver, subscription filter logic
+- `user-resolvers` / `post-resolvers` / `comment-resolvers` — all Query, Mutation, field resolvers, and the real subscription filter (via `withFilter` + pubsub)
 - `login-api` — full login/logout flow, rate limiting, cookie behavior
-- `user-datasource` — `UserSQLDataSource`: reducer, getUsers whitelist, createUser (bcrypt, index_ref, duplicata), updateUser, deleteUser
-- `post-datasource` — `PostSQLDataSource`: reducer, getPosts whitelist, createPost, updatePost (ownership), deletePost
-- `comment-datasource` — `CommentSQLDataSource`: reducer, getById, create (duplicate check, pubSub), batchLoaderCallback
+- `user-datasource` / `post-datasource` / `comment-datasource` — reducers, whitelist validation, create/update/delete, DataLoader batch functions
+- `context` — every branch of JWT/cookie authentication
+- `pubsub`, `sql-datasource`, `schema-index`, `logger`, `knex-config` — supporting modules (env-dependent branches, base class behavior, module wiring)
+
+### Integration tests (`npm run test:integration`)
+
+28 tests against a real MySQL database (requires `npm run db:setup` first).
+These exist specifically for what can't be meaningfully faked with mocks:
+unique-constraint violations, and `ON DELETE CASCADE` actually deleting a
+user's posts and a post's comments.
+
+### End-to-end tests (`npm run test:e2e`)
+
+28 checks that run real GraphQL requests against a running server — the
+same happy-path and rejected-without-auth scenarios a real client would hit.
 
 ## Database
 

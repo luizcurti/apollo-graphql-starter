@@ -1,0 +1,38 @@
+flowchart TB
+    subgraph Clients["Clients"]
+        HTTPClient["GraphQL Client / Postman<br/>(queries &amp; mutations)"]
+        WSClient["WebSocket Client<br/>(subscriptions)"]
+    end
+
+    subgraph App["Express App — src/index.ts"]
+        MW["CORS · cookie-parser · json · depthLimit(7)"]
+        HTTPServer["ApolloServer<br/>(expressMiddleware)"]
+        WSServer["graphql-ws<br/>(useServer)"]
+    end
+
+    Context["context()<br/>src/graphql/context<br/>JWT / cookie verification"]
+    Resolvers["Resolvers<br/>src/graphql/schema/*"]
+
+    subgraph DataSources["DataSources"]
+        UserDS["UserSQLDataSource"]
+        PostDS["PostSQLDataSource"]
+        CommentDS["CommentSQLDataSource"]
+        LoginApi["LoginApi"]
+    end
+
+    Knex["Knex Query Builder"]
+    MySQL[("MySQL 8<br/>users · posts · comments")]
+    PubSub["PubSub<br/>Redis (prod) / in-memory (dev)"]
+
+    HTTPClient -->|"POST / (HTTP)"| MW --> HTTPServer
+    WSClient -->|"ws:// (Upgrade)"| WSServer
+
+    HTTPServer --> Context
+    WSServer --> Context
+    Context --> Resolvers
+
+    Resolvers --> UserDS & PostDS & CommentDS & LoginApi
+    UserDS & PostDS & CommentDS & LoginApi --> Knex --> MySQL
+
+    Resolvers <-->|"publish / asyncIterableIterator"| PubSub
+    PubSub -.->|"notifies matching<br/>subscribers"| WSServer

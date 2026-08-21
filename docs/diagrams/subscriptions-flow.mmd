@@ -1,0 +1,38 @@
+sequenceDiagram
+    autonumber
+    participant PostOwnerWS as WS Client (post owner)
+    participant OtherWS as WS Client (other logged-in user)
+    participant WSServer as graphql-ws (useServer)
+    participant PS as PubSub
+    participant HTTP as Apollo Server (HTTP)
+    participant CDB as CommentSQLDataSource
+    participant PostDB as PostSQLDataSource
+    participant DB as MySQL
+
+    PostOwnerWS->>WSServer: subscription { createdComment { ... } }
+    WSServer->>WSServer: context({ req, connection: true })<br/>(no LoginApi over WS)
+    WSServer->>PS: withFilter(...) →<br/>asyncIterableIterator(CREATED_COMMENT)
+    Note over PostOwnerWS,PS: connection open, waiting
+
+    OtherWS->>WSServer: subscription { createdComment { ... } }
+    WSServer->>PS: asyncIterableIterator(CREATED_COMMENT)
+    Note over OtherWS,PS: also waiting, different loggedUserId
+
+    Note over HTTP,DB: Meanwhile, over HTTP
+    HTTP->>HTTP: mutation createComment(postId, comment)
+    HTTP->>HTTP: checkIsLoggedIn(loggedUserId)
+    HTTP->>PostDB: getPost(postId)
+    PostDB->>DB: SELECT ...
+    PostDB-->>HTTP: { userId: postOwnerId }
+    HTTP->>CDB: create({ postId, comment, userId, postOwner: postOwnerId })
+    CDB->>DB: SELECT ... (duplicate check)
+    CDB->>DB: INSERT INTO comments ...
+    CDB->>PS: publish(CREATED_COMMENT,<br/>{ createdComment, postOwner: postOwnerId })
+
+    PS-->>WSServer: payload delivered to every open iterator
+    WSServer->>WSServer: filterFn(payload, ctx) per subscriber:<br/>payload.postOwner === ctx.loggedUserId ?
+
+    alt PostOwnerWS.loggedUserId === postOwnerId
+        WSServer-->>PostOwnerWS: createdComment (delivered)
+    end
+    Note over OtherWS: filterFn returns false — nothing delivered

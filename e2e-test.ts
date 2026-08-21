@@ -38,10 +38,10 @@ const check = (name: string, resp: GqlResponse, expectError = false): void => {
   const hasErrors = Boolean(resp.errors && resp.errors.length > 0);
 
   if (hasErrors === expectError) {
-    console.log(`  ✅ PASS${expectError ? ' (erro esperado)' : ''}: ${name}`);
+    console.log(`  ✅ PASS${expectError ? ' (expected error)' : ''}: ${name}`);
     passCount += 1;
   } else {
-    const label = expectError ? '(esperava erro, não veio)' : '';
+    const label = expectError ? '(expected an error, got none)' : '';
     console.log(`  ❌ FAIL${label ? ` ${label}` : ''}: ${name}`);
     if (hasErrors) {
       const msgs = (resp.errors ?? []).map((e) => e.message || '?');
@@ -58,7 +58,7 @@ const main = async (): Promise<void> => {
   console.log('  GraphQL E2E Tests');
   console.log('=========================================');
 
-  // ── Cleanup: remove o usuário e2e de uma run anterior ────────────────────
+  // ── Cleanup: remove the e2e user from a previous run ─────────────────────
   const preLogin = await gql(`
     mutation {
       login(data: { userName: "e2e.test.user", password: "Senha123" }) {
@@ -73,12 +73,12 @@ const main = async (): Promise<void> => {
       token: oldE2eToken,
     });
     console.log(
-      `  🧹 Cleanup: user e2e.test.user (id=${oldE2eId}) removido de run anterior`,
+      `  🧹 Cleanup: user e2e.test.user (id=${oldE2eId}) removed from a previous run`,
     );
   }
 
   // ── 1. createUser ────────────────────────────────────────────────────────
-  console.log('\n[ MUTATIONS ] — Criar usuário e2e');
+  console.log('\n[ MUTATIONS ] — Create e2e user');
   let resp = await gql(`
     mutation {
       createUser(data: {
@@ -96,7 +96,7 @@ const main = async (): Promise<void> => {
   const e2eUserId = (resp.data as any)?.createUser?.id;
   console.log(`     => userId: ${e2eUserId}`);
 
-  // ── 2. login válido ─────────────────────────────────────────────────────
+  // ── 2. valid login ───────────────────────────────────────────────────────
   console.log('\n[ MUTATIONS ] — Login');
   resp = await gql(`
     mutation {
@@ -106,16 +106,16 @@ const main = async (): Promise<void> => {
       }
     }
   `);
-  check('login_valid_retorna_userId_e_token', resp);
+  check('login_valid_returns_userId_and_token', resp);
   const token = (resp.data as any)?.login?.token;
   const loginUserId = (resp.data as any)?.login?.userId;
   console.log(`     => userId: ${loginUserId}`);
   console.log(`     => token: ${(token || '').slice(0, 40)}...`);
 
-  // ── 3. login inválido ───────────────────────────────────────────────────
+  // ── 3. invalid login ─────────────────────────────────────────────────────
   resp = await gql(`
     mutation {
-      login(data: { userName: "nao_existe", password: "senhaerrada" }) {
+      login(data: { userName: "does_not_exist", password: "wrongpassword" }) {
         userId token
       }
     }
@@ -123,7 +123,7 @@ const main = async (): Promise<void> => {
   check('login_invalid', resp, true);
 
   // ── 4-6. getUser ─────────────────────────────────────────────────────────
-  console.log('\n[ QUERIES ] — Users (autenticado)');
+  console.log('\n[ QUERIES ] — Users (authenticated)');
   resp = await gql('{ user(id: "602") { id userName firstName } }', {
     token,
   });
@@ -148,7 +148,7 @@ const main = async (): Promise<void> => {
   );
   check('getUsers', resp);
 
-  // ── 8. getUsers com filtro ──────────────────────────────────────────────
+  // ── 8. getUsers with filter ──────────────────────────────────────────────
   resp = await gql(
     `
     query {
@@ -161,7 +161,7 @@ const main = async (): Promise<void> => {
   );
   check('getUsers_filtered_desc', resp);
 
-  // ── 9. getUsers com variável ────────────────────────────────────────────
+  // ── 9. getUsers with a variable ──────────────────────────────────────────
   resp = await gql(
     `
     query GET_USERS($id: ID!) {
@@ -174,7 +174,7 @@ const main = async (): Promise<void> => {
   );
   check('getUsers_variable', resp);
 
-  // ── 10. getUsers com fragmento ──────────────────────────────────────────
+  // ── 10. getUsers with a fragment ─────────────────────────────────────────
   resp = await gql(
     `
     fragment userFields on User {
@@ -205,7 +205,7 @@ const main = async (): Promise<void> => {
   });
   check('getPosts', resp);
 
-  // ── 14. getPost com aliases ─────────────────────────────────────────────
+  // ── 14. getPost with aliases ─────────────────────────────────────────────
   resp = await gql(
     `
     query {
@@ -217,7 +217,7 @@ const main = async (): Promise<void> => {
   );
   check('getPost_aliases', resp);
 
-  // ── 15. getPost com fragmento e unixTimestamp ───────────────────────────
+  // ── 15. getPost with a fragment and unixTimestamp ───────────────────────
   resp = await gql(
     `
     fragment postFields on Post {
@@ -232,10 +232,10 @@ const main = async (): Promise<void> => {
   );
   check('getPost_fragment_unixTimestamp', resp);
 
-  // ── 16. getPost — não encontrado retorna null ───────────────────────────
+  // ── 16. getPost — not found returns null ─────────────────────────────────
   resp = await gql('{ post(id: "999999") { id title } }', { token });
   if (resp.data !== undefined && resp.data !== null && !resp.errors) {
-    console.log('  ✅ PASS: getPost_not_found (retorna null sem erros)');
+    console.log('  ✅ PASS: getPost_not_found (returns null with no errors)');
     passCount += 1;
   } else {
     const msgs = (resp.errors || []).map((e) => e.message || '?');
@@ -249,7 +249,7 @@ const main = async (): Promise<void> => {
   resp = await gql(
     `
     mutation {
-      createPost(data: { title: "E2E Test Post", body: "Conteudo do post E2E" }) {
+      createPost(data: { title: "E2E Test Post", body: "E2E post content" }) {
         id title body
         user { firstName }
         indexRef createdAt
@@ -277,7 +277,7 @@ const main = async (): Promise<void> => {
     );
     check('updatePost', resp);
   } else {
-    console.log('  ⚠️  SKIP: updatePost (sem postId)');
+    console.log('  ⚠️  SKIP: updatePost (no postId)');
   }
 
   // ── 19. createComment ───────────────────────────────────────────────────
@@ -286,7 +286,7 @@ const main = async (): Promise<void> => {
     resp = await gql(
       `
       mutation {
-        createComment(data: { postId: "${e2ePostId}", comment: "Comentario E2E" }) {
+        createComment(data: { postId: "${e2ePostId}", comment: "E2E Comment" }) {
           id comment
           user { firstName }
         }
@@ -296,10 +296,10 @@ const main = async (): Promise<void> => {
     );
     check('createComment', resp);
   } else {
-    console.log('  ⚠️  SKIP: createComment (sem postId)');
+    console.log('  ⚠️  SKIP: createComment (no postId)');
   }
 
-  // ── 20. login como e2e user ─────────────────────────────────────────────
+  // ── 20. login as the e2e user ────────────────────────────────────────────
   console.log('\n[ MUTATIONS ] — E2E user update/delete');
   resp = await gql(`
     mutation {
@@ -332,7 +332,7 @@ const main = async (): Promise<void> => {
     console.log('  ⚠️  SKIP: updateUser');
   }
 
-  // ── 22. deletePost (antes do logout — precisa da sessão da Elisa) ──────
+  // ── 22. deletePost (before logout — needs Elisa's session) ──────────────
   console.log('\n[ MUTATIONS ] — Cleanup');
   if (e2ePostId) {
     resp = await gql(`mutation { deletePost(postId: "${e2ePostId}") }`, {
@@ -353,7 +353,7 @@ const main = async (): Promise<void> => {
     console.log('  ⚠️  SKIP: deleteUser');
   }
 
-  // ── 24. logout (elisa.pereira) — por último, invalida o token dela ─────
+  // ── 24. logout (elisa.pereira) — last, invalidates her token ────────────
   console.log('\n[ MUTATIONS ] — Logout');
   resp = await gql(
     `
@@ -365,32 +365,32 @@ const main = async (): Promise<void> => {
   );
   check('logout_elisa', resp);
 
-  // ── 25. rotas sem auth devem rejeitar ───────────────────────────────────
-  console.log('\n[ SEGURANÇA ] — Rotas sem autenticação devem rejeitar');
-  check('getUser_sem_auth', await gql('{ user(id: "602") { id } }'), true);
-  check('getUsers_sem_auth', await gql('{ users { id } }'), true);
-  check('getPosts_sem_auth', await gql('{ posts { id } }'), true);
+  // ── 25. routes without auth must be rejected ─────────────────────────────
+  console.log('\n[ SECURITY ] — Routes without authentication must be rejected');
+  check('getUser_no_auth', await gql('{ user(id: "602") { id } }'), true);
+  check('getUsers_no_auth', await gql('{ users { id } }'), true);
+  check('getPosts_no_auth', await gql('{ posts { id } }'), true);
   check(
-    'createPost_sem_auth',
+    'createPost_no_auth',
     await gql(
       'mutation { createPost(data: { title: "x", body: "y" }) { id } }',
     ),
     true,
   );
 
-  // ── 26. union types (não implementados) ─────────────────────────────────
+  // ── 26. union types (not implemented) ────────────────────────────────────
   console.log(
-    '\n[ INFO ] — Union types (PostError) — requerem refatoração no schema',
+    '\n[ INFO ] — Union types (PostError) — would require a schema refactor',
   );
   console.log(
-    '  ⚠️  SKIP: queries_0010/0011 (PostError/PostNotFoundError/PostTimeoutError fora do escopo atual)',
+    '  ⚠️  SKIP: queries_0010/0011 (PostError/PostNotFoundError/PostTimeoutError out of current scope)',
   );
 
   console.log('\n=========================================');
-  console.log('  RESULTADO FINAL');
+  console.log('  FINAL RESULT');
   console.log('=========================================');
-  console.log(`  ✅ Passou: ${passCount}`);
-  console.log(`  ❌ Falhou: ${failCount}`);
+  console.log(`  ✅ Passed: ${passCount}`);
+  console.log(`  ❌ Failed: ${failCount}`);
   console.log(`  Total:    ${passCount + failCount}`);
 
   if (failCount > 0) process.exit(1);

@@ -6,6 +6,7 @@
   "scripts": {
     "test": "jest",
     "test:watch": "jest --watch",
+    "test:integration": "NODE_ENV=development jest --config jest.integration.config.js --runInBand",
     "test:e2e": "node -r dotenv/config -r sucrase/register e2e-test.ts",
     "test:ci": "npm run lint:check && npm run typecheck && npm run test && npm run build",
     "typecheck": "tsc --noEmit",
@@ -83,6 +84,7 @@
   "jest": {
     "transform": {
       "^.+\\.[jt]sx?$": "@sucrase/jest-plugin"
-    }
+    },
+    "testPathIgnorePatterns": ["/node_modules/", "/__tests__/integration/"]
   }
 }

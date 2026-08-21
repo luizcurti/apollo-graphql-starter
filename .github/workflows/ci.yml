@@ -7,9 +7,9 @@ on:
     branches: [ main ]
 
 jobs:
-  ci:
+  quality:
     runs-on: ubuntu-latest
-    name: Code Quality & Tests
+    name: Code Quality & Unit Tests
 
     steps:
     - name: Checkout code
@@ -30,7 +30,10 @@ jobs:
     - name: Check code formatting with Prettier
       run: npx prettier --check src/
 
-    - name: Run tests
+    - name: Type-check
+      run: npm run typecheck
+
+    - name: Run unit tests
       run: npm test
 
     - name: Build project
@@ -41,3 +44,81 @@ jobs:
 
     - name: Check for outdated dependencies
       run: npm outdated || echo "Some dependencies are outdated"
+
+  integration:
+    runs-on: ubuntu-latest
+    name: Integration & E2E Tests
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: rootpassword
+          MYSQL_DATABASE: graphql_mysql
+          MYSQL_USER: graphql_user
+          MYSQL_PASSWORD: graphql_pass
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -u root -prootpassword"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      NODE_ENV: development
+      PORT: 4003
+      ALLOWED_ORIGINS: http://localhost:4003
+      JWT_SECRET: ci-only-secret-not-used-anywhere-else-32chars
+      DATABASE_CLIENT: mysql2
+      DATABASE_HOST: 127.0.0.1
+      DATABASE_PORT: 3306
+      DATABASE_NAME: graphql_mysql
+      DATABASE_USER: graphql_user
+      DATABASE_PASSWORD: graphql_pass
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Use Node.js 22.x
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22.x'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run migrations
+      run: npm run migrate
+
+    - name: Seed development data
+      run: npm run seed
+
+    - name: Run integration tests (real MySQL)
+      run: npm run test:integration
+
+    - name: Build project
+      run: npm run build
+
+    - name: Start server
+      run: node -r dotenv/config dist/index.js &
+
+    - name: Wait for server to be ready
+      run: |
+        for i in $(seq 1 30); do
+          if curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:4003/ \
+            -H "Content-Type: application/json" \
+            -d '{"query":"{ __typename }"}' | grep -q 200; then
+            echo "Server is up"
+            exit 0
+          fi
+          echo "Waiting for server... ($i/30)"
+          sleep 1
+        done
+        echo "Server did not become ready in time"
+        exit 1
+
+    - name: Run e2e tests
+      run: npm run test:e2e

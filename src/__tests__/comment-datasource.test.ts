@@ -2,7 +2,7 @@ import type { Knex } from 'knex';
 import { ValidationError } from '../graphql/errors';
 import { CommentSQLDataSource } from '../graphql/schema/comment/datasources';
 
-// mock pubSub para não precisar de Redis em teste
+// mock pubSub so tests don't need a real Redis
 jest.mock('../graphql/pubsub', () => ({
   pubSub: { publish: jest.fn() },
   CREATED_COMMENT_TRIGGER: 'CREATED_COMMENT',
@@ -14,7 +14,7 @@ import { pubSub } from '../graphql/pubsub';
 
 const makeCommentRow = (overrides = {}) => ({
   id: 1,
-  comment: 'Ótimo post!',
+  comment: 'Great post!',
   user_id: '10',
   post_id: '5',
   created_at: new Date('2024-01-01T00:00:00Z'),
@@ -33,10 +33,10 @@ beforeEach(() => jest.clearAllMocks());
 // ─── commentReducer (via getByPostId) ────────────────────────────────────────
 
 describe('CommentSQLDataSource — commentReducer', () => {
-  it('mapeia campos e formata createdAt como ISO string', async () => {
+  it('maps fields and formats createdAt as an ISO string', async () => {
     const row = makeCommentRow();
     const qb = makeQb();
-    // getByPostId faz await direto no query builder
+    // getByPostId awaits the query builder directly
     const db = jest.fn(() => Object.assign(Promise.resolve([row]), qb));
     const ds = new CommentSQLDataSource(db as unknown as Knex);
     ds.initialize({ context: {}, cache: undefined });
@@ -44,16 +44,16 @@ describe('CommentSQLDataSource — commentReducer', () => {
     const results = await ds.getByPostId('5');
 
     expect(results[0].id).toBe(1);
-    expect(results[0].comment).toBe('Ótimo post!');
+    expect(results[0].comment).toBe('Great post!');
     expect(results[0].user_id).toBe('10');
     expect(results[0].createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });
 });
 
-// ─── getById — bug fix: deve retornar single row ──────────────────────────────
+// ─── getById — bug fix: should return a single row ──────────────────────────
 
 describe('CommentSQLDataSource.getById', () => {
-  it('retorna o comentário correto (não o query builder)', async () => {
+  it('returns the correct comment (not the query builder)', async () => {
     const row = makeCommentRow();
     const qb = {
       where: jest.fn().mockReturnThis(),
@@ -65,7 +65,7 @@ describe('CommentSQLDataSource.getById', () => {
 
     const result = await ds.getById(1);
 
-    // após o fix, deve retornar o objeto — não um query builder
+    // after the fix, this should return the object — not a query builder
     expect(result).toEqual(row);
     expect(qb.first).toHaveBeenCalled();
   });
@@ -74,10 +74,10 @@ describe('CommentSQLDataSource.getById', () => {
 // ─── create ──────────────────────────────────────────────────────────────────
 
 describe('CommentSQLDataSource.create', () => {
-  it('lança ValidationError quando comentário duplicado já existe', async () => {
+  it('throws ValidationError when a duplicate comment already exists', async () => {
     const qb = makeQb({
       where: jest.fn().mockReturnThis(),
-      // simula exists como array com 1 item (já existe)
+      // simulates "exists" as an array with 1 item (already exists)
       then: undefined,
     });
     const db = jest.fn(() =>
@@ -87,23 +87,23 @@ describe('CommentSQLDataSource.create', () => {
     ds.initialize({ context: {}, cache: undefined });
 
     await expect(
-      ds.create({ userId: '10', postId: '5', comment: 'Ótimo post!' }),
+      ds.create({ userId: '10', postId: '5', comment: 'Great post!' }),
     ).rejects.toThrow(ValidationError);
 
     expect(qb.insert).not.toHaveBeenCalled();
   });
 
-  it('insere e retorna o comentário quando não é duplicado', async () => {
+  it('inserts and returns the comment when it is not a duplicate', async () => {
     let callCount = 0;
     const db = jest.fn(() => {
       callCount++;
       if (callCount === 1) {
-        // primeiro: check duplicata — retorna array vazio (não existe)
+        // first call: duplicate check — returns an empty array (doesn't exist)
         return Object.assign(Promise.resolve([]), {
           where: jest.fn().mockReturnThis(),
         });
       }
-      // segundo: insert
+      // second call: insert
       return { insert: jest.fn().mockResolvedValue([99]) };
     });
 
@@ -113,17 +113,17 @@ describe('CommentSQLDataSource.create', () => {
     const result = await ds.create({
       userId: '10',
       postId: '5',
-      comment: 'Novo comentário',
+      comment: 'New comment',
       postOwner: 'owner1',
     });
 
     expect(result.id).toBe(99);
-    expect(result.comment).toBe('Novo comentário');
+    expect(result.comment).toBe('New comment');
     expect(result.user_id).toBe('10');
     expect(result.post_id).toBe('5');
   });
 
-  it('publica evento no pubSub após criar comentário', async () => {
+  it('publishes an event on pubSub after creating a comment', async () => {
     let callCount = 0;
     const db = jest.fn(() => {
       callCount++;
@@ -141,7 +141,7 @@ describe('CommentSQLDataSource.create', () => {
     await ds.create({
       userId: '10',
       postId: '5',
-      comment: 'Olá',
+      comment: 'Hello',
       postOwner: 'owner1',
     });
 
@@ -154,7 +154,7 @@ describe('CommentSQLDataSource.create', () => {
     );
   });
 
-  it('passa postOwner como null quando não informado', async () => {
+  it('passes postOwner as null when not provided', async () => {
     let callCount = 0;
     const db = jest.fn(() => {
       callCount++;
@@ -169,7 +169,7 @@ describe('CommentSQLDataSource.create', () => {
     const ds = new CommentSQLDataSource(db as unknown as Knex);
     ds.initialize({ context: {}, cache: undefined });
 
-    await ds.create({ userId: '10', postId: '5', comment: 'Olá' });
+    await ds.create({ userId: '10', postId: '5', comment: 'Hello' });
 
     expect(pubSub.publish).toHaveBeenCalledWith(
       'CREATED_COMMENT',
@@ -181,7 +181,7 @@ describe('CommentSQLDataSource.create', () => {
 // ─── batchLoaderCallback ─────────────────────────────────────────────────────
 
 describe('CommentSQLDataSource.batchLoaderCallback', () => {
-  it('agrupa comentários por post_id corretamente', async () => {
+  it('groups comments by post_id correctly', async () => {
     const rows = [
       makeCommentRow({ id: 1, post_id: '5', comment: 'A' }),
       makeCommentRow({ id: 2, post_id: '5', comment: 'B' }),
@@ -198,8 +198,8 @@ describe('CommentSQLDataSource.batchLoaderCallback', () => {
 
     const result = await ds.batchLoaderCallback(['5', '7', '99']);
 
-    expect(result[0]).toHaveLength(2); // post_id '5' tem 2 comentários
-    expect(result[1]).toHaveLength(1); // post_id '7' tem 1 comentário
-    expect(result[2]).toHaveLength(0); // post_id '99' não tem comentários
+    expect(result[0]).toHaveLength(2); // post_id '5' has 2 comments
+    expect(result[1]).toHaveLength(1); // post_id '7' has 1 comment
+    expect(result[2]).toHaveLength(0); // post_id '99' has no comments
   });
 });

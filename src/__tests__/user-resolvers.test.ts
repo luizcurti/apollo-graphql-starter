@@ -25,7 +25,7 @@ beforeEach(() => jest.clearAllMocks());
 // ─── Query ──────────────────────────────────────────────────────────────────
 
 describe('Query.user', () => {
-  it('lança AuthenticationError quando não está autenticado', async () => {
+  it('throws AuthenticationError when not authenticated', async () => {
     await expect(
       userResolvers.Query.user(null, { id: '1' }, makeCtx('')),
     ).rejects.toThrow(AuthenticationError);
@@ -33,7 +33,7 @@ describe('Query.user', () => {
     expect(mockUserDb.getUser).not.toHaveBeenCalled();
   });
 
-  it('retorna o usuário pelo id quando autenticado', async () => {
+  it('returns the user by id when authenticated', async () => {
     const user = { id: '1', userName: 'alice' };
     mockUserDb.getUser.mockResolvedValue(user);
 
@@ -47,7 +47,7 @@ describe('Query.user', () => {
     expect(result).toEqual(user);
   });
 
-  it('retorna null quando usuário não existe', async () => {
+  it('returns null when the user does not exist', async () => {
     mockUserDb.getUser.mockResolvedValue(null);
 
     const result = await userResolvers.Query.user(
@@ -61,7 +61,7 @@ describe('Query.user', () => {
 });
 
 describe('Query.users', () => {
-  it('lança AuthenticationError quando não está autenticado', async () => {
+  it('throws AuthenticationError when not authenticated', async () => {
     await expect(
       userResolvers.Query.users(null, {}, makeCtx('')),
     ).rejects.toThrow(AuthenticationError);
@@ -69,7 +69,7 @@ describe('Query.users', () => {
     expect(mockUserDb.getUsers).not.toHaveBeenCalled();
   });
 
-  it('retorna lista de usuários sem filtros quando autenticado', async () => {
+  it('returns the list of users with no filters when authenticated', async () => {
     const users = [{ id: '1' }, { id: '2' }];
     mockUserDb.getUsers.mockResolvedValue(users);
 
@@ -83,7 +83,7 @@ describe('Query.users', () => {
     expect(result).toHaveLength(2);
   });
 
-  it('passa filtros de paginação para o datasource', async () => {
+  it('passes pagination filters through to the datasource', async () => {
     mockUserDb.getUsers.mockResolvedValue([]);
     const input = {
       _sort: 'createdAt',
@@ -97,7 +97,7 @@ describe('Query.users', () => {
     expect(mockUserDb.getUsers).toHaveBeenCalledWith(input);
   });
 
-  it('retorna lista vazia quando não há usuários', async () => {
+  it('returns an empty list when there are no users', async () => {
     mockUserDb.getUsers.mockResolvedValue([]);
 
     const result = await userResolvers.Query.users(null, {}, makeCtx('user1'));
@@ -109,7 +109,7 @@ describe('Query.users', () => {
 // ─── Mutations ───────────────────────────────────────────────────────────────
 
 describe('Mutation.createUser', () => {
-  it('cria e retorna o novo usuário', async () => {
+  it('creates and returns the new user', async () => {
     const data = {
       firstName: 'Alice',
       lastName: 'Silva',
@@ -131,7 +131,7 @@ describe('Mutation.createUser', () => {
 });
 
 describe('Mutation.updateUser', () => {
-  it('lança AuthenticationError quando não está autenticado', async () => {
+  it('throws AuthenticationError when not authenticated', async () => {
     await expect(
       userResolvers.Mutation.updateUser(
         null,
@@ -143,7 +143,7 @@ describe('Mutation.updateUser', () => {
     expect(mockUserDb.updateUser).not.toHaveBeenCalled();
   });
 
-  it('lança AuthenticationError quando o usuário logado não é o dono', async () => {
+  it('throws AuthenticationError when the logged-in user is not the owner', async () => {
     await expect(
       userResolvers.Mutation.updateUser(
         null,
@@ -155,25 +155,25 @@ describe('Mutation.updateUser', () => {
     expect(mockUserDb.updateUser).not.toHaveBeenCalled();
   });
 
-  it('atualiza quando o usuário logado é o dono', async () => {
-    const updated = { id: '1', firstName: 'Nova' };
+  it('updates when the logged-in user is the owner', async () => {
+    const updated = { id: '1', firstName: 'New' };
     mockUserDb.updateUser.mockResolvedValue(updated);
 
     const result = await userResolvers.Mutation.updateUser(
       null,
-      { userId: '1', data: { firstName: 'Nova' } },
+      { userId: '1', data: { firstName: 'New' } },
       makeCtx('1'),
     );
 
     expect(mockUserDb.updateUser).toHaveBeenCalledWith('1', {
-      firstName: 'Nova',
+      firstName: 'New',
     });
     expect(result).toEqual(updated);
   });
 });
 
 describe('Mutation.deleteUser', () => {
-  it('lança AuthenticationError quando não está autenticado', async () => {
+  it('throws AuthenticationError when not authenticated', async () => {
     await expect(
       userResolvers.Mutation.deleteUser(null, { userId: '1' }, makeCtx('')),
     ).rejects.toThrow(AuthenticationError);
@@ -181,7 +181,7 @@ describe('Mutation.deleteUser', () => {
     expect(mockUserDb.deleteUser).not.toHaveBeenCalled();
   });
 
-  it('lança AuthenticationError quando o usuário logado não é o dono', async () => {
+  it('throws AuthenticationError when the logged-in user is not the owner', async () => {
     await expect(
       userResolvers.Mutation.deleteUser(null, { userId: '1' }, makeCtx('2')),
     ).rejects.toThrow(AuthenticationError);
@@ -189,7 +189,7 @@ describe('Mutation.deleteUser', () => {
     expect(mockUserDb.deleteUser).not.toHaveBeenCalled();
   });
 
-  it('deleta e retorna true quando o usuário logado é o dono', async () => {
+  it('deletes and returns true when the logged-in user is the owner', async () => {
     mockUserDb.deleteUser.mockResolvedValue(true);
 
     const result = await userResolvers.Mutation.deleteUser(
@@ -206,7 +206,7 @@ describe('Mutation.deleteUser', () => {
 // ─── Field Resolvers ─────────────────────────────────────────────────────────
 
 describe('User.posts (field resolver)', () => {
-  it('carrega os posts do usuário via DataLoader', async () => {
+  it("loads the user's posts via DataLoader", async () => {
     const posts = [{ id: '10' }, { id: '11' }];
     mockPostDb.batchLoadByUserId.mockResolvedValue(posts);
 
@@ -216,7 +216,7 @@ describe('User.posts (field resolver)', () => {
     expect(result).toEqual(posts);
   });
 
-  it('retorna array vazio quando usuário não tem posts', async () => {
+  it('returns an empty array when the user has no posts', async () => {
     mockPostDb.batchLoadByUserId.mockResolvedValue([]);
 
     const result = await userResolvers.User.posts({ id: '1' }, null, makeCtx());

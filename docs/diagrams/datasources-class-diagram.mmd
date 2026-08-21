@@ -1,0 +1,59 @@
+classDiagram
+    class SQLDatasource~TKey, TValue~ {
+        +Knex db
+        #context
+        #cache
+        -DataLoader~TKey, TValue~ _loader
+        +constructor(dbConnection)
+        +initialize(context, cache) void
+        +batchLoad(id) Promise~TValue~
+        +batchLoaderCallback(ids) Promise~TValue[]~
+    }
+
+    class UserSQLDataSource {
+        +tableName = "users"
+        -DataLoader _byIdLoader
+        -DataLoader _byUserNameLoader
+        +getUsers(filters) Promise~User[]~
+        +getUser(id) Promise~User~
+        +getUserByUserName(userName) Promise~User~
+        +batchLoadById(id) Promise~User~
+        +createUser(input) Promise~User~
+        +updateUser(id, input) Promise~User~
+        +deleteUser(id) Promise~bool~
+        +setToken(id, token) Promise~void~
+        +clearToken(id) Promise~void~
+    }
+
+    class PostSQLDataSource {
+        +tableName = "posts"
+        -DataLoader _byUserIdLoader
+        +getPosts(filters) Promise~Post[]~
+        +getPost(id) Promise~Post~
+        +batchLoadByUserId(userId) Promise~Post[]~
+        +createPost(input) Promise~Post~
+        +updatePost(id, input, loggedUserId) Promise~Post~
+        +deletePost(id, loggedUserId) Promise~bool~
+    }
+
+    class CommentSQLDataSource {
+        +tableName = "comments"
+        +getById(id) Promise~CommentRow~
+        +getByPostId(postId) Promise~Comment[]~
+        +create(input) Promise~Comment~
+        +batchLoaderCallback(postIds) Promise~Comment[][]~
+    }
+
+    class LoginApi {
+        -Context context
+        +initialize(context) void
+        +getUser(userName) Promise~User~
+        +login(userName, password) Promise~LoginResult~
+        +logout(userName) Promise~bool~
+        +createJwtToken(payload) string
+    }
+
+    SQLDatasource <|-- UserSQLDataSource
+    SQLDatasource <|-- PostSQLDataSource
+    SQLDatasource <|-- CommentSQLDataSource
+    LoginApi ..> UserSQLDataSource : reads/writes via context.dataSources.userDb

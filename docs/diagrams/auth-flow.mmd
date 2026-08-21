@@ -1,0 +1,49 @@
+sequenceDiagram
+    autonumber
+    participant C as Client
+    participant S as Apollo Server
+    participant Ctx as context()
+    participant LA as LoginApi
+    participant UDB as UserSQLDataSource
+    participant DB as MySQL
+
+    Note over C,DB: 1) Login
+    C->>S: mutation login(userName, password)
+    S->>Ctx: context({ req, res })
+    Ctx-->>S: { loggedUserId: empty, dataSources }
+    S->>LA: login(userName, password)
+    LA->>LA: checkRateLimit(userName)<br/>(5 tries / 15 min)
+    LA->>UDB: getUserByUserName(userName)
+    UDB->>DB: SELECT * FROM users WHERE user_name = ?
+    DB-->>UDB: row
+    alt user not found
+        LA-->>C: AuthenticationError "User does not exist."
+    end
+    LA->>LA: bcrypt.compare(password, passwordHash)
+    alt wrong password
+        LA-->>C: AuthenticationError "Invalid password."
+    end
+    LA->>LA: createJwtToken({ userId }) — 7d expiry
+    LA->>UDB: setToken(userId, token)
+    UDB->>DB: UPDATE users SET token = ? WHERE id = ?
+    LA-->>C: Set-Cookie jwtToken (httpOnly, secure, sameSite=none)<br/>{ userId, token }
+
+    Note over C,DB: 2) Any subsequent authenticated request
+    C->>S: query/mutation [Cookie: jwtToken=...]
+    S->>Ctx: context({ req, res })
+    alt Authorization Bearer header present
+        Ctx->>Ctx: jwt.verify(token) → { userId }
+    else no bearer, cookie present
+        Ctx->>Ctx: parse Cookie header → jwtToken
+        Ctx->>Ctx: jwt.verify(jwtToken) → { userId }
+    end
+    Ctx->>UDB: getUser(userId)
+    UDB->>DB: SELECT * FROM users WHERE id = ?
+    Ctx->>Ctx: foundUser.token === presented token?
+    alt token mismatch, expired, or user missing
+        Ctx-->>S: loggedUserId = empty (unauthenticated)
+    else valid
+        Ctx-->>S: loggedUserId = userId
+    end
+    S->>S: resolver calls checkIsLoggedIn(loggedUserId)<br/>and, for owned resources, checkOwner(resourceUserId, loggedUserId)
+    S-->>C: data, or AuthenticationError

@@ -10,8 +10,8 @@ import { PostSQLDataSource } from '../graphql/schema/post/sql-datasource';
 
 const makeRow = (overrides = {}) => ({
   id: 1,
-  title: 'Título',
-  body: 'Corpo do post',
+  title: 'Title',
+  body: 'Post body',
   user_id: 10,
   index_ref: 1,
   created_at: new Date('2024-01-01T00:00:00Z'),
@@ -43,7 +43,7 @@ const makeDs = (qbOverrides = {}) => {
 // ─── postReducer (via getPost) ────────────────────────────────────────────────
 
 describe('PostSQLDataSource — postReducer', () => {
-  it('mapeia campos e converte id/userId para string', async () => {
+  it('maps fields and converts id/userId to string', async () => {
     const { ds, qb } = makeDs();
     qb.first.mockResolvedValue(makeRow());
 
@@ -51,12 +51,12 @@ describe('PostSQLDataSource — postReducer', () => {
 
     expect(result?.id).toBe('1');
     expect(result?.userId).toBe('10');
-    expect(result?.title).toBe('Título');
-    expect(result?.body).toBe('Corpo do post');
+    expect(result?.title).toBe('Title');
+    expect(result?.body).toBe('Post body');
     expect(result?.createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });
 
-  it('getPost retorna null quando não encontrado', async () => {
+  it('getPost returns null when not found', async () => {
     const { ds, qb } = makeDs();
     qb.first.mockResolvedValue(null);
 
@@ -64,24 +64,56 @@ describe('PostSQLDataSource — postReducer', () => {
   });
 });
 
-// ─── getPosts / whitelist de _sort ───────────────────────────────────────────
+// ─── getPosts / _sort whitelist ──────────────────────────────────────────────
 
-describe('PostSQLDataSource.getPosts — whitelist _sort', () => {
-  it('lança UserInputError para coluna não permitida', () => {
+describe('PostSQLDataSource.getPosts — filters', () => {
+  it('works when called with no arguments (uses the default {})', async () => {
+    const mockDb = jest.fn(() =>
+      Object.assign(Promise.resolve([]), {
+        orderBy: jest.fn().mockReturnThis(),
+        offset: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+      }),
+    );
+    const ds = new PostSQLDataSource(mockDb as unknown as Knex);
+    ds.initialize({ context: {}, cache: undefined });
+
+    await expect(ds.getPosts()).resolves.toEqual([]);
+  });
+
+  it('applies _start and _limit when provided', async () => {
+    const qb = {
+      orderBy: jest.fn().mockReturnThis(),
+      offset: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+    };
+    const mockDb = jest.fn(() => Object.assign(Promise.resolve([]), qb));
+    const ds = new PostSQLDataSource(mockDb as unknown as Knex);
+    ds.initialize({ context: {}, cache: undefined });
+
+    await ds.getPosts({ _start: 2, _limit: 5 });
+
+    expect(qb.offset).toHaveBeenCalledWith(2);
+    expect(qb.limit).toHaveBeenCalledWith(5);
+  });
+});
+
+describe('PostSQLDataSource.getPosts — _sort whitelist', () => {
+  it('throws UserInputError for a disallowed column', () => {
     const { ds } = makeDs();
     return expect(ds.getPosts({ _sort: 'body' })).rejects.toThrow(
       UserInputError,
     );
   });
 
-  it('lança UserInputError para tentativa de injeção', () => {
+  it('throws UserInputError for an injection attempt', () => {
     const { ds } = makeDs();
     return expect(
       ds.getPosts({ _sort: 'title; DROP TABLE posts; --' }),
     ).rejects.toThrow(UserInputError);
   });
 
-  it('aceita todas as colunas da whitelist', async () => {
+  it('accepts every column in the whitelist', async () => {
     const allowed = ['id', 'title', 'user_id', 'index_ref', 'created_at'];
 
     for (const col of allowed) {
@@ -103,23 +135,23 @@ describe('PostSQLDataSource.getPosts — whitelist _sort', () => {
 // ─── createPost ──────────────────────────────────────────────────────────────
 
 describe('PostSQLDataSource.createPost', () => {
-  it('lança ValidationError quando title está vazio', () => {
+  it('throws ValidationError when title is empty', () => {
     const { ds } = makeDs();
     return expect(
-      ds.createPost({ title: '', body: 'Corpo', userId: '1' }),
+      ds.createPost({ title: '', body: 'Body', userId: '1' }),
     ).rejects.toThrow(ValidationError);
   });
 
-  it('lança ValidationError quando body está vazio', () => {
+  it('throws ValidationError when body is empty', () => {
     const { ds } = makeDs();
     return expect(
-      ds.createPost({ title: 'Título', body: '', userId: '1' }),
+      ds.createPost({ title: 'Title', body: '', userId: '1' }),
     ).rejects.toThrow(ValidationError);
   });
 
-  it('insere com os campos corretos e retorna o post criado', async () => {
+  it('inserts with the correct fields and returns the created post', async () => {
     const qb = makeQb({
-      first: jest.fn().mockResolvedValueOnce(makeRow()), // getPost após insert
+      first: jest.fn().mockResolvedValueOnce(makeRow()), // getPost after insert
       insert: jest.fn().mockResolvedValue([42]),
       max: jest.fn().mockResolvedValue([{ val: 9 }]),
     });
@@ -128,24 +160,40 @@ describe('PostSQLDataSource.createPost', () => {
     ds.initialize({ context: {}, cache: undefined });
 
     const result = await ds.createPost({
-      title: 'Título',
-      body: 'Corpo',
+      title: 'Title',
+      body: 'Body',
       userId: '10',
     });
 
     const insertCall = qb.insert.mock.calls[0][0];
-    expect(insertCall.title).toBe('Título');
-    expect(insertCall.body).toBe('Corpo');
+    expect(insertCall.title).toBe('Title');
+    expect(insertCall.body).toBe('Body');
     expect(insertCall.user_id).toBe('10');
     expect(insertCall.index_ref).toBe(10); // MAX(9) + 1
     expect(result).toBeDefined();
+  });
+
+  it('uses 0 as the base index_ref when MAX returns null (empty table)', async () => {
+    const qb = makeQb({
+      first: jest.fn().mockResolvedValueOnce(makeRow({ index_ref: 1 })),
+      insert: jest.fn().mockResolvedValue([1]),
+      max: jest.fn().mockResolvedValue([{ val: null }]),
+    });
+    const db = jest.fn(() => qb);
+    const ds = new PostSQLDataSource(db as unknown as Knex);
+    ds.initialize({ context: {}, cache: undefined });
+
+    await ds.createPost({ title: 'Title', body: 'Body', userId: '1' });
+
+    const insertCall = qb.insert.mock.calls[0][0];
+    expect(insertCall.index_ref).toBe(1); // 0 (fallback) + 1
   });
 });
 
 // ─── updatePost ──────────────────────────────────────────────────────────────
 
 describe('PostSQLDataSource.updatePost', () => {
-  it('lança ValidationError quando post não existe', () => {
+  it('throws ValidationError when the post does not exist', () => {
     const { ds, qb } = makeDs();
     qb.first.mockResolvedValue(null);
 
@@ -154,7 +202,7 @@ describe('PostSQLDataSource.updatePost', () => {
     ).rejects.toThrow(ValidationError);
   });
 
-  it('lança AuthenticationError quando loggedUserId não é o dono', () => {
+  it('throws AuthenticationError when loggedUserId is not the owner', () => {
     const { ds, qb } = makeDs();
     qb.first.mockResolvedValue(makeRow({ user_id: 10 }));
 
@@ -163,7 +211,7 @@ describe('PostSQLDataSource.updatePost', () => {
     );
   });
 
-  it('lança ValidationError quando nenhum campo é passado', () => {
+  it('throws ValidationError when no field is passed', () => {
     const { ds, qb } = makeDs();
     qb.first.mockResolvedValue(makeRow({ user_id: 10 }));
 
@@ -172,7 +220,7 @@ describe('PostSQLDataSource.updatePost', () => {
     );
   });
 
-  it('lança ValidationError quando title é string vazia', () => {
+  it('throws ValidationError when title is an empty string', () => {
     const { ds, qb } = makeDs();
     qb.first.mockResolvedValue(makeRow({ user_id: 10 }));
 
@@ -181,31 +229,58 @@ describe('PostSQLDataSource.updatePost', () => {
     );
   });
 
-  it('atualiza apenas os campos fornecidos', async () => {
+  it('throws ValidationError when body is an empty string', () => {
+    const { ds, qb } = makeDs();
+    qb.first.mockResolvedValue(makeRow({ user_id: 10 }));
+
+    return expect(ds.updatePost('1', { body: '' }, '10')).rejects.toThrow(
+      ValidationError,
+    );
+  });
+
+  it('updates only body when it is the only field provided', async () => {
     const qb = makeQb({
       first: jest
         .fn()
-        .mockResolvedValueOnce(makeRow({ user_id: 10 })) // getPost para verificação
-        .mockResolvedValueOnce(makeRow({ title: 'Novo' })), // getPost de retorno
+        .mockResolvedValueOnce(makeRow({ user_id: 10 }))
+        .mockResolvedValueOnce(makeRow({ body: 'New body' })),
       update: jest.fn().mockResolvedValue(1),
     });
     const db = jest.fn(() => qb);
     const ds = new PostSQLDataSource(db as unknown as Knex);
     ds.initialize({ context: {}, cache: undefined });
 
-    const result = await ds.updatePost('1', { title: 'Novo' }, '10');
+    const result = await ds.updatePost('1', { body: 'New body' }, '10');
+
+    expect(qb.update).toHaveBeenCalledWith({ body: 'New body' });
+    expect(result?.body).toBe('New body');
+  });
+
+  it('updates only the fields provided', async () => {
+    const qb = makeQb({
+      first: jest
+        .fn()
+        .mockResolvedValueOnce(makeRow({ user_id: 10 })) // getPost for the ownership check
+        .mockResolvedValueOnce(makeRow({ title: 'New' })), // getPost for the return value
+      update: jest.fn().mockResolvedValue(1),
+    });
+    const db = jest.fn(() => qb);
+    const ds = new PostSQLDataSource(db as unknown as Knex);
+    ds.initialize({ context: {}, cache: undefined });
+
+    const result = await ds.updatePost('1', { title: 'New' }, '10');
 
     const updateCall = qb.update.mock.calls[0][0];
-    expect(updateCall).toEqual({ title: 'Novo' });
+    expect(updateCall).toEqual({ title: 'New' });
     expect(updateCall).not.toHaveProperty('body');
-    expect(result?.title).toBe('Novo');
+    expect(result?.title).toBe('New');
   });
 });
 
 // ─── deletePost ──────────────────────────────────────────────────────────────
 
 describe('PostSQLDataSource.deletePost', () => {
-  it('lança ValidationError quando post não existe', () => {
+  it('throws ValidationError when the post does not exist', () => {
     const { ds, qb } = makeDs();
     qb.first.mockResolvedValue(null);
 
@@ -214,7 +289,7 @@ describe('PostSQLDataSource.deletePost', () => {
     );
   });
 
-  it('lança AuthenticationError quando loggedUserId não é o dono', () => {
+  it('throws AuthenticationError when loggedUserId is not the owner', () => {
     const { ds, qb } = makeDs();
     qb.first.mockResolvedValue(makeRow({ user_id: 10 }));
 
@@ -223,7 +298,7 @@ describe('PostSQLDataSource.deletePost', () => {
     );
   });
 
-  it('retorna true quando deletado com sucesso', async () => {
+  it('returns true when successfully deleted', async () => {
     const qb = makeQb({
       first: jest.fn().mockResolvedValue(makeRow({ user_id: 10 })),
       delete: jest.fn().mockResolvedValue(1),
@@ -235,7 +310,7 @@ describe('PostSQLDataSource.deletePost', () => {
     expect(await ds.deletePost('1', '10')).toBe(true);
   });
 
-  it('retorna false quando delete afeta 0 linhas', async () => {
+  it('returns false when delete affects 0 rows', async () => {
     const qb = makeQb({
       first: jest.fn().mockResolvedValue(makeRow({ user_id: 10 })),
       delete: jest.fn().mockResolvedValue(0),
@@ -245,5 +320,41 @@ describe('PostSQLDataSource.deletePost', () => {
     ds.initialize({ context: {}, cache: undefined });
 
     expect(await ds.deletePost('1', '10')).toBe(false);
+  });
+});
+
+// ─── batchLoadByUserId (via DataLoader) ──────────────────────────────────────
+
+describe('PostSQLDataSource.batchLoadByUserId', () => {
+  it("returns the user's posts correctly grouped", async () => {
+    const rows = [
+      makeRow({ id: 1, user_id: 10 }),
+      makeRow({ id: 2, user_id: 10 }),
+      makeRow({ id: 3, user_id: 20 }),
+    ];
+    const db = jest.fn(() =>
+      Object.assign(Promise.resolve(rows), {
+        whereIn: jest.fn().mockReturnThis(),
+      }),
+    );
+    const ds = new PostSQLDataSource(db as unknown as Knex);
+    ds.initialize({ context: {}, cache: undefined });
+
+    const result = await ds.batchLoadByUserId(10);
+    expect(result).toHaveLength(2);
+    expect(result.every((p) => p.userId === '10')).toBe(true);
+  });
+
+  it('returns an empty array when the user has no posts', async () => {
+    const db = jest.fn(() =>
+      Object.assign(Promise.resolve([]), {
+        whereIn: jest.fn().mockReturnThis(),
+      }),
+    );
+    const ds = new PostSQLDataSource(db as unknown as Knex);
+    ds.initialize({ context: {}, cache: undefined });
+
+    const result = await ds.batchLoadByUserId(999);
+    expect(result).toEqual([]);
   });
 });

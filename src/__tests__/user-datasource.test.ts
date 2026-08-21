@@ -47,7 +47,7 @@ const makeDs = (dbOverrides = {}) => {
 // ─── userReducer (via getUser) ────────────────────────────────────────────────
 
 describe('UserSQLDataSource — userReducer', () => {
-  it('mapeia campos snake_case para camelCase e converte id para string', async () => {
+  it('maps snake_case fields to camelCase and converts id to string', async () => {
     const row = makeRow();
     const { db, queryBuilder } = makeDb();
     queryBuilder.first.mockResolvedValue(row);
@@ -63,7 +63,7 @@ describe('UserSQLDataSource — userReducer', () => {
     expect(result?.createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });
 
-  it('getUser retorna null quando linha não existe', async () => {
+  it('getUser returns null when the row does not exist', async () => {
     const { db, queryBuilder } = makeDb();
     queryBuilder.first.mockResolvedValue(null);
     const ds = new UserSQLDataSource(db);
@@ -75,18 +75,18 @@ describe('UserSQLDataSource — userReducer', () => {
   });
 });
 
-// ─── getUsers / whitelist de _sort ───────────────────────────────────────────
+// ─── getUsers / _sort whitelist ──────────────────────────────────────────────
 
 describe('UserSQLDataSource.getUsers', () => {
-  it('retorna lista de usuários sem filtros', async () => {
-    // abordagem direta: mock db retornando rows
+  it('returns the list of users with no filters', async () => {
+    // direct approach: mock db returning rows
     const mockDb = jest.fn(() => {
       const q = {
         orderBy: jest.fn().mockReturnThis(),
         offset: jest.fn().mockReturnThis(),
         limit: jest.fn().mockReturnThis(),
       };
-      // torna thenable (await q retorna rows)
+      // makes it thenable (await q returns the rows)
       return Object.assign(Promise.resolve([makeRow(), makeRow({ id: 2 })]), q);
     });
 
@@ -99,21 +99,51 @@ describe('UserSQLDataSource.getUsers', () => {
     expect(results[1].id).toBe('2');
   });
 
-  it('lança UserInputError para coluna de ordenação não permitida', () => {
+  it('throws UserInputError for a disallowed sort column', () => {
     const { ds } = makeDs();
     return expect(ds.getUsers({ _sort: 'password_hash' })).rejects.toThrow(
       UserInputError,
     );
   });
 
-  it('lança UserInputError para tentativa de injeção em _sort', () => {
+  it('throws UserInputError for an injection attempt in _sort', () => {
     const { ds } = makeDs();
     return expect(
       ds.getUsers({ _sort: 'id; DROP TABLE users; --' }),
     ).rejects.toThrow(UserInputError);
   });
 
-  it('aceita colunas permitidas na whitelist', async () => {
+  it('applies _start and _limit when provided', async () => {
+    const qb = {
+      orderBy: jest.fn().mockReturnThis(),
+      offset: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+    };
+    const mockDb = jest.fn(() => Object.assign(Promise.resolve([]), qb));
+    const ds = new UserSQLDataSource(mockDb as unknown as Knex);
+    ds.initialize({ context: {}, cache: undefined });
+
+    await ds.getUsers({ _start: 5, _limit: 10 });
+
+    expect(qb.offset).toHaveBeenCalledWith(5);
+    expect(qb.limit).toHaveBeenCalledWith(10);
+  });
+
+  it('works when called with no arguments (uses the default {})', async () => {
+    const mockDb = jest.fn(() =>
+      Object.assign(Promise.resolve([]), {
+        orderBy: jest.fn().mockReturnThis(),
+        offset: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+      }),
+    );
+    const ds = new UserSQLDataSource(mockDb as unknown as Knex);
+    ds.initialize({ context: {}, cache: undefined });
+
+    await expect(ds.getUsers()).resolves.toEqual([]);
+  });
+
+  it('accepts every column in the whitelist', async () => {
     const allowed = [
       'id',
       'first_name',
@@ -142,7 +172,7 @@ describe('UserSQLDataSource.getUsers', () => {
 // ─── createUser ──────────────────────────────────────────────────────────────
 
 describe('UserSQLDataSource.createUser', () => {
-  it('lança ValidationError para userName inválido', () => {
+  it('throws ValidationError for an invalid userName', () => {
     const { ds } = makeDs();
     return expect(
       ds.createUser({
@@ -154,7 +184,7 @@ describe('UserSQLDataSource.createUser', () => {
     ).rejects.toThrow(ValidationError);
   });
 
-  it('lança UserInputError para senha fraca', () => {
+  it('throws UserInputError for a weak password', () => {
     const { ds } = makeDs();
     return expect(
       ds.createUser({
@@ -166,7 +196,7 @@ describe('UserSQLDataSource.createUser', () => {
     ).rejects.toThrow();
   });
 
-  it('lança ValidationError quando userName já existe', async () => {
+  it('throws ValidationError when the userName already exists', async () => {
     const existingRow = makeRow();
     const qb = {
       where: jest.fn().mockReturnThis(),
@@ -197,15 +227,15 @@ describe('UserSQLDataSource.createUser', () => {
     expect(qb.insert).not.toHaveBeenCalled();
   });
 
-  it('faz hash da senha com bcrypt antes de salvar', async () => {
+  it('hashes the password with bcrypt before saving', async () => {
     const qb = {
       where: jest.fn().mockReturnThis(),
       whereNot: jest.fn().mockReturnThis(),
       whereIn: jest.fn().mockReturnThis(),
       first: jest
         .fn()
-        .mockResolvedValueOnce(null) // check duplicata
-        .mockResolvedValueOnce(makeRow()), // getUser após insert
+        .mockResolvedValueOnce(null) // duplicate check
+        .mockResolvedValueOnce(makeRow()), // getUser after insert
       insert: jest.fn().mockResolvedValue([10]),
       max: jest.fn().mockResolvedValue([{ val: 5 }]),
       update: jest.fn(),
@@ -228,12 +258,12 @@ describe('UserSQLDataSource.createUser', () => {
     const insertCall = qb.insert.mock.calls[0][0];
     expect(insertCall).toHaveProperty('password_hash');
     expect(insertCall.password_hash).not.toBe('Senha123');
-    // valida que é um hash bcrypt real
+    // validates that it's a real bcrypt hash
     const isValid = await bcrypt.compare('Senha123', insertCall.password_hash);
     expect(isValid).toBe(true);
   });
 
-  it('não salva a senha em texto puro', async () => {
+  it('does not save the password in plain text', async () => {
     const qb = {
       where: jest.fn().mockReturnThis(),
       whereNot: jest.fn().mockReturnThis(),
@@ -266,7 +296,39 @@ describe('UserSQLDataSource.createUser', () => {
     expect(insertCall.password_hash).not.toBe('Senha123');
   });
 
-  it('calcula index_ref como MAX + 1', async () => {
+  it('uses 0 as the base index_ref when MAX returns null (empty table)', async () => {
+    const qb = {
+      where: jest.fn().mockReturnThis(),
+      whereNot: jest.fn().mockReturnThis(),
+      whereIn: jest.fn().mockReturnThis(),
+      first: jest
+        .fn()
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(makeRow({ index_ref: 1 })),
+      insert: jest.fn().mockResolvedValue([10]),
+      max: jest.fn().mockResolvedValue([{ val: null }]),
+      update: jest.fn(),
+      delete: jest.fn(),
+      orderBy: jest.fn().mockReturnThis(),
+      offset: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+    };
+    const db = jest.fn(() => qb);
+    const ds = new UserSQLDataSource(db as unknown as Knex);
+    ds.initialize({ context: {}, cache: undefined });
+
+    await ds.createUser({
+      firstName: 'Alice',
+      lastName: 'Silva',
+      userName: 'alice.silva',
+      password: 'Senha123',
+    });
+
+    const insertCall = qb.insert.mock.calls[0][0];
+    expect(insertCall.index_ref).toBe(1); // 0 (fallback) + 1
+  });
+
+  it('computes index_ref as MAX + 1', async () => {
     const qb = {
       where: jest.fn().mockReturnThis(),
       whereNot: jest.fn().mockReturnThis(),
@@ -302,7 +364,7 @@ describe('UserSQLDataSource.createUser', () => {
 // ─── updateUser ──────────────────────────────────────────────────────────────
 
 describe('UserSQLDataSource.updateUser', () => {
-  it('lança ValidationError quando nenhum campo é passado', async () => {
+  it('throws ValidationError when no field is passed', async () => {
     const qb = {
       where: jest.fn().mockReturnThis(),
       whereNot: jest.fn().mockReturnThis(),
@@ -324,7 +386,53 @@ describe('UserSQLDataSource.updateUser', () => {
     expect(qb.update).not.toHaveBeenCalled();
   });
 
-  it('faz hash da nova senha ao atualizar', async () => {
+  it('updates only firstName when it is the only field provided', async () => {
+    const qb = {
+      where: jest.fn().mockReturnThis(),
+      whereNot: jest.fn().mockReturnThis(),
+      whereIn: jest.fn().mockReturnThis(),
+      first: jest.fn().mockResolvedValue(makeRow({ first_name: 'New' })),
+      insert: jest.fn(),
+      max: jest.fn(),
+      update: jest.fn().mockResolvedValue(1),
+      delete: jest.fn(),
+      orderBy: jest.fn().mockReturnThis(),
+      offset: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+    };
+    const db = jest.fn(() => qb);
+    const ds = new UserSQLDataSource(db as unknown as Knex);
+    ds.initialize({ context: {}, cache: undefined });
+
+    await ds.updateUser('1', { firstName: 'New' });
+
+    expect(qb.update).toHaveBeenCalledWith({ first_name: 'New' });
+  });
+
+  it('updates only lastName when it is the only field provided', async () => {
+    const qb = {
+      where: jest.fn().mockReturnThis(),
+      whereNot: jest.fn().mockReturnThis(),
+      whereIn: jest.fn().mockReturnThis(),
+      first: jest.fn().mockResolvedValue(makeRow({ last_name: 'New' })),
+      insert: jest.fn(),
+      max: jest.fn(),
+      update: jest.fn().mockResolvedValue(1),
+      delete: jest.fn(),
+      orderBy: jest.fn().mockReturnThis(),
+      offset: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+    };
+    const db = jest.fn(() => qb);
+    const ds = new UserSQLDataSource(db as unknown as Knex);
+    ds.initialize({ context: {}, cache: undefined });
+
+    await ds.updateUser('1', { lastName: 'New' });
+
+    expect(qb.update).toHaveBeenCalledWith({ last_name: 'New' });
+  });
+
+  it('hashes the new password when updating', async () => {
     const qb = {
       where: jest.fn().mockReturnThis(),
       whereNot: jest.fn().mockReturnThis(),
@@ -342,15 +450,12 @@ describe('UserSQLDataSource.updateUser', () => {
     const ds = new UserSQLDataSource(db as unknown as Knex);
     ds.initialize({ context: {}, cache: undefined });
 
-    await ds.updateUser('1', { password: 'NovaSenha1' });
+    await ds.updateUser('1', { password: 'NewPass1' });
 
     const updateCall = qb.update.mock.calls[0][0];
     expect(updateCall).toHaveProperty('password_hash');
-    expect(updateCall.password_hash).not.toBe('NovaSenha1');
-    const isValid = await bcrypt.compare(
-      'NovaSenha1',
-      updateCall.password_hash,
-    );
+    expect(updateCall.password_hash).not.toBe('NewPass1');
+    const isValid = await bcrypt.compare('NewPass1', updateCall.password_hash);
     expect(isValid).toBe(true);
   });
 });
@@ -358,7 +463,7 @@ describe('UserSQLDataSource.updateUser', () => {
 // ─── deleteUser ──────────────────────────────────────────────────────────────
 
 describe('UserSQLDataSource.deleteUser', () => {
-  it('retorna true quando linha é deletada', async () => {
+  it('returns true when the row is deleted', async () => {
     const qb = {
       where: jest.fn().mockReturnThis(),
       whereIn: jest.fn().mockReturnThis(),
@@ -378,7 +483,7 @@ describe('UserSQLDataSource.deleteUser', () => {
     expect(await ds.deleteUser('1')).toBe(true);
   });
 
-  it('retorna false quando usuário não existe', async () => {
+  it('returns false when the user does not exist', async () => {
     const qb = {
       where: jest.fn().mockReturnThis(),
       whereIn: jest.fn().mockReturnThis(),
@@ -396,5 +501,140 @@ describe('UserSQLDataSource.deleteUser', () => {
     ds.initialize({ context: {}, cache: undefined });
 
     expect(await ds.deleteUser('999')).toBe(false);
+  });
+});
+
+// ─── batchLoadById / getUserByUserName (DataLoader batch functions) ─────────
+
+describe('UserSQLDataSource.batchLoadById (via DataLoader)', () => {
+  it('returns the user when found', async () => {
+    const row = makeRow({ id: 5 });
+    const db = jest.fn(() =>
+      Object.assign(Promise.resolve([row]), {
+        whereIn: jest.fn().mockReturnThis(),
+      }),
+    );
+    const ds = new UserSQLDataSource(db as unknown as Knex);
+    ds.initialize({ context: {}, cache: undefined });
+
+    const result = await ds.batchLoadById(5);
+    expect(result?.id).toBe('5');
+  });
+
+  it('returns null when the user is not found', async () => {
+    const db = jest.fn(() =>
+      Object.assign(Promise.resolve([]), {
+        whereIn: jest.fn().mockReturnThis(),
+      }),
+    );
+    const ds = new UserSQLDataSource(db as unknown as Knex);
+    ds.initialize({ context: {}, cache: undefined });
+
+    const result = await ds.batchLoadById(999);
+    expect(result).toBeNull();
+  });
+});
+
+describe('UserSQLDataSource.getUserByUserName (via DataLoader)', () => {
+  it('returns the user when the userName exists', async () => {
+    const row = makeRow({ user_name: 'bob.silva' });
+    const db = jest.fn(() =>
+      Object.assign(Promise.resolve([row]), {
+        whereIn: jest.fn().mockReturnThis(),
+      }),
+    );
+    const ds = new UserSQLDataSource(db as unknown as Knex);
+    ds.initialize({ context: {}, cache: undefined });
+
+    const result = await ds.getUserByUserName('bob.silva');
+    expect(result?.userName).toBe('bob.silva');
+  });
+
+  it('returns null when the userName does not exist', async () => {
+    const db = jest.fn(() =>
+      Object.assign(Promise.resolve([]), {
+        whereIn: jest.fn().mockReturnThis(),
+      }),
+    );
+    const ds = new UserSQLDataSource(db as unknown as Knex);
+    ds.initialize({ context: {}, cache: undefined });
+
+    const result = await ds.getUserByUserName('nobody');
+    expect(result).toBeNull();
+  });
+});
+
+// ─── updateUser — userName ───────────────────────────────────────────────────
+
+describe('UserSQLDataSource.updateUser — userName', () => {
+  it('throws ValidationError when the new userName already belongs to another user', async () => {
+    const qb = {
+      where: jest.fn().mockReturnThis(),
+      whereNot: jest.fn().mockReturnThis(),
+      whereIn: jest.fn().mockReturnThis(),
+      first: jest
+        .fn()
+        .mockResolvedValue(makeRow({ id: 2, user_name: 'taken' })),
+      update: jest.fn(),
+    };
+    const db = jest.fn(() => qb);
+    const ds = new UserSQLDataSource(db as unknown as Knex);
+    ds.initialize({ context: {}, cache: undefined });
+
+    await expect(ds.updateUser('1', { userName: 'taken' })).rejects.toThrow(
+      ValidationError,
+    );
+    expect(qb.update).not.toHaveBeenCalled();
+  });
+
+  it('updates the userName when it is available', async () => {
+    const qb = {
+      where: jest.fn().mockReturnThis(),
+      whereNot: jest.fn().mockReturnThis(),
+      whereIn: jest.fn().mockReturnThis(),
+      first: jest
+        .fn()
+        .mockResolvedValueOnce(null) // duplicate check — available
+        .mockResolvedValueOnce(makeRow({ user_name: 'new.name' })), // final getUser
+      update: jest.fn().mockResolvedValue(1),
+    };
+    const db = jest.fn(() => qb);
+    const ds = new UserSQLDataSource(db as unknown as Knex);
+    ds.initialize({ context: {}, cache: undefined });
+
+    const result = await ds.updateUser('1', { userName: 'new.name' });
+
+    expect(qb.update).toHaveBeenCalledWith({ user_name: 'new.name' });
+    expect(result?.userName).toBe('new.name');
+  });
+});
+
+// ─── setToken / clearToken ────────────────────────────────────────────────────
+
+describe('UserSQLDataSource.setToken / clearToken', () => {
+  it("setToken updates the user's token", async () => {
+    const qb = {
+      where: jest.fn().mockReturnThis(),
+      update: jest.fn().mockResolvedValue(1),
+    };
+    const db = jest.fn(() => qb);
+    const ds = new UserSQLDataSource(db as unknown as Knex);
+    ds.initialize({ context: {}, cache: undefined });
+
+    await ds.setToken('1', 'abc123');
+    expect(qb.update).toHaveBeenCalledWith({ token: 'abc123' });
+  });
+
+  it("clearToken clears the user's token", async () => {
+    const qb = {
+      where: jest.fn().mockReturnThis(),
+      update: jest.fn().mockResolvedValue(1),
+    };
+    const db = jest.fn(() => qb);
+    const ds = new UserSQLDataSource(db as unknown as Knex);
+    ds.initialize({ context: {}, cache: undefined });
+
+    await ds.clearToken('1');
+    expect(qb.update).toHaveBeenCalledWith({ token: '' });
   });
 });
