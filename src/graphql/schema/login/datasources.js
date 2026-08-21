@@ -1,7 +1,6 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { DataSource } from 'apollo-datasource';
-import { AuthenticationError, UserInputError } from 'apollo-server-errors';
+import { AuthenticationError, UserInputError } from '../../errors';
 
 // In-memory store for login attempts: key = userName, value = { count, resetAt }
 // In a multi-instance setup, replace with Redis. Sufficient for single-instance prod.
@@ -29,7 +28,7 @@ const checkRateLimit = (userName) => {
 
 const clearRateLimit = (userName) => loginAttempts.delete(userName);
 
-export class LoginApi extends DataSource {
+export class LoginApi {
   initialize({ context }) {
     this.context = context;
   }

@@ -1,5 +1,5 @@
 import { postResolvers } from '../graphql/schema/post/resolvers';
-import { AuthenticationError } from 'apollo-server-errors';
+import { AuthenticationError } from '../graphql/errors';
 
 const mockPostDb = {
   getPost: jest.fn(),

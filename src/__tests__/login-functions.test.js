@@ -2,7 +2,7 @@ import {
   checkIsLoggedIn,
   checkOwner,
 } from '../graphql/schema/login/utils/login-functions';
-import { AuthenticationError } from 'apollo-server-errors';
+import { AuthenticationError } from '../graphql/errors';
 
 describe('checkIsLoggedIn', () => {
   it('throws AuthenticationError when loggedUserId is empty string', () => {

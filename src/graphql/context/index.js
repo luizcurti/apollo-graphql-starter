@@ -1,6 +1,9 @@
 import jwt from 'jsonwebtoken';
 import { knex } from '../../knex/';
 import { UserSQLDataSource } from '../schema/user/sql-datasource';
+import { PostSQLDataSource } from '../schema/post/sql-datasource';
+import { CommentSQLDataSource } from '../schema/comment/datasources';
+import { LoginApi } from '../schema/login/datasources';
 import { logger } from '../../utils/logger';
 
 const makeUserDb = () => {
@@ -35,7 +38,7 @@ const authorizeUserWithBearerToken = async (req) => {
   try {
     const [, token] = authorization.split(' ');
     return await verifyJwtToken(token);
-  } catch (e) {
+  } catch (_e) {
     return '';
   }
 };
@@ -55,30 +58,32 @@ const cookieParser = (cookiesHeader) => {
 };
 
 export const context = async ({ req, res, connection }) => {
-  const reqOrConnection = req || connection?.context?.req;
-  let loggedUserId = await authorizeUserWithBearerToken(reqOrConnection);
+  let loggedUserId = await authorizeUserWithBearerToken(req);
 
-  if (!loggedUserId) {
-    if (
-      reqOrConnection &&
-      reqOrConnection.headers &&
-      reqOrConnection.headers.cookie
-    ) {
-      const { jwtToken } = cookieParser(reqOrConnection.headers.cookie);
-      loggedUserId = await verifyJwtToken(jwtToken);
-    }
+  if (!loggedUserId && req && req.headers && req.headers.cookie) {
+    const { jwtToken } = cookieParser(req.headers.cookie);
+    loggedUserId = await verifyJwtToken(jwtToken);
   }
+
+  const userDb = makeUserDb();
+  const postDb = new PostSQLDataSource(knex);
+  const commentDb = new CommentSQLDataSource(knex);
 
   const theContext = {
     loggedUserId,
     res,
+    dataSources: { userDb },
   };
 
-  if (connection) {
-    const userDb = makeUserDb();
-    theContext.dataSources = {
-      userDb,
-    };
+  postDb.initialize({ context: theContext, cache: undefined });
+  commentDb.initialize({ context: theContext, cache: undefined });
+  theContext.dataSources.postDb = postDb;
+  theContext.dataSources.commentDb = commentDb;
+
+  if (!connection) {
+    const loginApi = new LoginApi();
+    loginApi.initialize({ context: theContext });
+    theContext.dataSources.loginApi = loginApi;
   }
 
   return theContext;

@@ -1,5 +1,5 @@
 import { userResolvers } from '../graphql/schema/user/resolvers';
-import { AuthenticationError } from 'apollo-server-errors';
+import { AuthenticationError } from '../graphql/errors';
 
 const mockUserDb = {
   getUser: jest.fn(),

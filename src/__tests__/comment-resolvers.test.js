@@ -1,5 +1,5 @@
 import { commentResolvers } from '../graphql/schema/comment/resolvers';
-import { AuthenticationError } from 'apollo-server-errors';
+import { AuthenticationError } from '../graphql/errors';
 
 const mockCommentDb = {
   create: jest.fn(),

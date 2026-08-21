@@ -1,4 +1,4 @@
-import { ValidationError } from 'apollo-server-errors';
+import { ValidationError } from '../graphql/errors';
 import { CommentSQLDataSource } from '../graphql/schema/comment/datasources';
 
 // mock pubSub para não precisar de Redis em teste

@@ -2,7 +2,7 @@ import {
   AuthenticationError,
   UserInputError,
   ValidationError,
-} from 'apollo-server-errors';
+} from '../graphql/errors';
 import { PostSQLDataSource } from '../graphql/schema/post/sql-datasource';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

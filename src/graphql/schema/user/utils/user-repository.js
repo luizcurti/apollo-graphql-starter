@@ -1,4 +1,4 @@
-import { UserInputError, ValidationError } from 'apollo-server-errors';
+import { UserInputError, ValidationError } from '../../../errors';
 
 export const validateUserName = (userName) => {
   const userNameRegExp = /^[a-z]([a-z0-9_.-]+)+$/gi;

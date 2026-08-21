@@ -2,7 +2,7 @@ import {
   validateUserName,
   validateUserPassword,
 } from '../graphql/schema/user/utils/user-repository';
-import { ValidationError, UserInputError } from 'apollo-server-errors';
+import { ValidationError, UserInputError } from '../graphql/errors';
 
 describe('validateUserName', () => {
   it('throws ValidationError for userName starting with a digit', () => {
